@@ -11,12 +11,14 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/blevesearch/bleve"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
 
 var libConfig = fmt.Sprintf("%s/config.json", getLibraryDirectory())
 var libPath = fmt.Sprintf("%s/library.json", getLibraryDirectory())
+var libDb = fmt.Sprintf("%s/db", getLibraryDirectory())
 
 type configuration struct {
 	AuthToken  string `json:"token"`
@@ -41,7 +43,7 @@ func getLibraryDirectory() string {
 }
 
 func deleteLibrary() {
-	os.Remove(getLibraryDirectory())
+	os.RemoveAll(getLibraryDirectory())
 }
 
 func setupLibrary(AuthToken string) bool {
@@ -54,6 +56,7 @@ func setupLibrary(AuthToken string) bool {
 	check(err)
 	err = ioutil.WriteFile(libConfig, out, 0644)
 	check(err)
+
 	return true
 }
 
@@ -81,6 +84,14 @@ func authenticate() {
 		ListOptions: github.ListOptions{Page: 0, PerPage: 100},
 	}
 
+	// Create search index with bleve
+	mapping := bleve.NewIndexMapping()
+	index, err := bleve.New(libDb, mapping)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(index)
+
 	/* Fetch list of users gists */
 	var allGists []*github.Gist
 	var Library []*Snippet
@@ -93,7 +104,7 @@ func authenticate() {
 			break
 		}
 		opt.Page = resp.NextPage
-		fmt.Printf("GETTING NEXT PAGE\n")
+		fmt.Printf("GETTING NEXT PAGE2\n")
 	}
 	Library = make([]*Snippet, len(allGists))
 	for idx, gist := range allGists {
@@ -104,6 +115,8 @@ func authenticate() {
 			CreatedAt:   gist.GetCreatedAt(),
 			UpdatedAt:   gist.GetUpdatedAt(),
 		}
+		// Store gist in db
+		index.Index(gist.GetID(), f)
 		Library[idx] = &f
 		fmt.Printf("%+v\n", f)
 	}
@@ -111,6 +124,15 @@ func authenticate() {
 	check(err)
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)
+
+	query := bleve.NewMatchQuery("annotation")
+	search := bleve.NewSearchRequest(query)
+	searchResults, err := index.Search(search)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(searchResults)
 	// for _, gist := range allGists {
 	// 	//gist2, resp, err := client.Gists.Get(ctx, *gist.ID)
 	// 	//check(err)
