@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
-	"github.com/briandowns/spinner"
 	. "github.com/logrusorgru/aurora"
 	"github.com/pkg/browser"
 	"github.com/urfave/cli"
 )
+
+var errlog = log.New(os.Stderr, "", 0)
 
 func main() {
 
@@ -65,12 +65,8 @@ func main() {
 						return cli.NewExitError(Bold(Red("\n\tThe API Key should be 40 characters\n\n")), 32)
 					}
 					/* Store Token */
-					s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Build our new spinner
-					s.Writer = os.Stderr
-					s.Start() // Start the spinner
 					setupLibrary(token)
 					authenticate()
-					s.Stop()
 
 				}
 				return nil

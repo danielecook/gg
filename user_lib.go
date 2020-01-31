@@ -6,17 +6,24 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
 	"time"
 
 	"github.com/blevesearch/bleve"
+	"github.com/briandowns/spinner"
 	"github.com/google/go-github/github"
+	. "github.com/logrusorgru/aurora"
+	"github.com/schollz/progressbar/v2"
 	"golang.org/x/oauth2"
 )
 
+// libConfig - Global library configuration
 var libConfig = fmt.Sprintf("%s/config.json", getLibraryDirectory())
+
+// Global library configuration
 var libPath = fmt.Sprintf("%s/library.json", getLibraryDirectory())
 var libDb = fmt.Sprintf("%s/db", getLibraryDirectory())
 
@@ -26,27 +33,41 @@ type configuration struct {
 }
 
 type Snippet struct {
-	ID          string    `json:"id"`
-	Description string    `json:"description"`
-	Public      bool      `json:"public"`
-	Comments    int       `json:"comments"`
-	CreatedAt   time.Time `json:"CreatedAt"`
-	UpdatedAt   time.Time `json:"UpdatedAt"`
-	Filename    string    `json:"Filename"`
-	Snippet     string    `json:"Snippet"`
-	URL         string    `json:"URL"`
-	Commit      string    `json:"commit"`
-	Version     string    `json:"version"`
+	ID          string                                  `json:"id"`
+	Description string                                  `json:"description"`
+	Public      bool                                    `json:"public"`
+	Files       map[github.GistFilename]github.GistFile `json:"files"`
+	Content     string                                  `json:"content"`
+	Comments    int                                     `json:"comments"`
+	CreatedAt   time.Time                               `json:"CreatedAt"`
+	UpdatedAt   time.Time                               `json:"UpdatedAt"`
+	Snippet     string                                  `json:"Snippet"`
+	URL         string                                  `json:"URL"`
+	Commit      string                                  `json:"commit"`
 }
 
-func fetchLibrary(allGists []*github.Gist) []*Snippet {
-	// Fetches and processes the gist library
+// parseLibrary
+func parseLibrary(allGists []*github.Gist) []*Snippet {
 	var Library []*Snippet
 	Library = make([]*Snippet, len(allGists))
+
+	errlog.Println(Bold("Loading Gists"))
+
+	// Initialize progress bar
+	bar := progressbar.New(len(allGists))
 	for idx, gist := range allGists {
+		items := make(map[github.GistFilename]github.GistFile)
+		for k, _ := range gist.Files {
+			var updated = gist.Files[k]
+			var url = string(*gist.Files[k].RawURL)
+			updated.Content = fetchContent(url)
+			items[k] = updated
+		}
+		bar.Add(1)
 		var f = Snippet{ID: gist.GetID(),
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
+			Files:       items,
 			Comments:    gist.GetComments(),
 			CreatedAt:   gist.GetCreatedAt(),
 			UpdatedAt:   gist.GetUpdatedAt(),
@@ -57,6 +78,21 @@ func fetchLibrary(allGists []*github.Gist) []*Snippet {
 		Library[idx] = &f
 	}
 	return Library
+}
+
+// Fetch the raw text for a gist
+func fetchContent(url string) *string {
+	resp, err := http.Get(url)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	var result = string(content)
+	return &result
 }
 
 func getLibraryDirectory() string {
@@ -116,6 +152,10 @@ func authenticate() {
 		fmt.Println(err)
 	}
 
+	/* Use spinner for initial fetching of gist list */
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Build our new spinner
+	s.Writer = os.Stderr
+	s.Start() // Start the spinner
 	/* Fetch list of users gists */
 	var allGists []*github.Gist
 	var Library []*Snippet
@@ -131,17 +171,19 @@ func authenticate() {
 		}
 		opt.Page = resp.NextPage
 
-		fmt.Printf("Loading [total=%v] [page=%v]\n", len(allGists), page)
+		errlog.Printf("Loading [total=%v] [page=%v]\n", len(allGists), page)
 		page += 1
 
 	}
-	fmt.Printf("Fetching complete [total=%v]\n", len(allGists))
-	Library = fetchLibrary(allGists)
+	errlog.Printf("Fetching complete [total=%v]\n", len(allGists))
+	s.Stop()
+	Library = parseLibrary(allGists)
+
 	for _, snippet := range Library {
 		// Store gist in db
 		index.Index(snippet.ID, snippet)
 	}
-	out, err := json.Marshal(allGists)
+	out, err := json.Marshal(Library)
 	check(err)
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)
