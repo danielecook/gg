@@ -8,10 +8,14 @@ import (
 
 	"github.com/briandowns/spinner"
 	. "github.com/logrusorgru/aurora"
+	"github.com/pkg/browser"
 	"github.com/urfave/cli"
 )
 
 func main() {
+
+	var token string
+	fmt.Println(token)
 
 	//client := github.NewClient(nil)
 	app := cli.NewApp()
@@ -34,7 +38,7 @@ func main() {
 			Usage:                  "Create a new gist",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				fmt.Printf("Great\n")
+				browser.OpenURL("https://gist.github.com")
 				return nil
 			},
 		},
@@ -45,30 +49,29 @@ func main() {
 			Category:  "Account",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name: "authentication_token",
+					Name:        "authentication_token",
+					EnvVar:      "TOKEN",
+					Destination: &token,
 				},
 			},
 			Action: func(c *cli.Context) error {
-				if c.NArg() == 0 {
+				if token == "" {
 					/* sq login */
 					err_msg := Bold(Red("\n\tError - Please supply your Authentication Token\n"))
 					return cli.NewExitError(err_msg, 2)
-				} else if c.NArg() >= 1 {
-					var apiKey = c.Args().Get(0)
-					if len(apiKey) != 40 {
+				} else {
+					if len(token) != 40 {
 						/* sq login <wrong_length> */
 						return cli.NewExitError(Bold(Red("\n\tThe API Key should be 40 characters\n\n")), 32)
 					}
-					/* Store API Key */
+					/* Store Token */
 					s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Build our new spinner
 					s.Writer = os.Stderr
 					s.Start() // Start the spinner
-					setupLibrary(apiKey)
+					setupLibrary(token)
 					authenticate()
 					s.Stop()
 
-				} else {
-					ThrowError("UnknownError")
 				}
 				return nil
 			},
@@ -82,6 +85,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				// Running api_auth_user will update the library if possible
 				fmt.Printf("GGGGG")
+				ls()
 				return nil
 			},
 			Flags: []cli.Flag{

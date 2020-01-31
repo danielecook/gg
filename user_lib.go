@@ -32,6 +32,31 @@ type Snippet struct {
 	Comments    int       `json:"comments"`
 	CreatedAt   time.Time `json:"CreatedAt"`
 	UpdatedAt   time.Time `json:"UpdatedAt"`
+	Filename    string    `json:"Filename"`
+	Snippet     string    `json:"Snippet"`
+	URL         string    `json:"URL"`
+	Commit      string    `json:"commit"`
+	Version     string    `json:"version"`
+}
+
+func fetchLibrary(allGists []*github.Gist) []*Snippet {
+	// Fetches and processes the gist library
+	var Library []*Snippet
+	Library = make([]*Snippet, len(allGists))
+	for idx, gist := range allGists {
+		var f = Snippet{ID: gist.GetID(),
+			Description: gist.GetDescription(),
+			Public:      gist.GetPublic(),
+			Comments:    gist.GetComments(),
+			CreatedAt:   gist.GetCreatedAt(),
+			UpdatedAt:   gist.GetUpdatedAt(),
+			URL:         gist.GetHTMLURL(),
+		}
+		// Store gist in db
+		//index.Index(gist.GetID(), f)
+		Library[idx] = &f
+	}
+	return Library
 }
 
 func getLibraryDirectory() string {
@@ -90,12 +115,13 @@ func authenticate() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(index)
 
 	/* Fetch list of users gists */
 	var allGists []*github.Gist
 	var Library []*Snippet
+	page := 1
 	for {
+
 		gists, resp, err := client.Gists.List(ctx, "", opt)
 		check(err)
 
@@ -104,21 +130,16 @@ func authenticate() {
 			break
 		}
 		opt.Page = resp.NextPage
-		fmt.Printf("GETTING NEXT PAGE2\n")
+
+		fmt.Printf("Loading [total=%v] [page=%v]\n", len(allGists), page)
+		page += 1
+
 	}
-	Library = make([]*Snippet, len(allGists))
-	for idx, gist := range allGists {
-		var f = Snippet{ID: gist.GetID(),
-			Description: gist.GetDescription(),
-			Public:      gist.GetPublic(),
-			Comments:    gist.GetComments(),
-			CreatedAt:   gist.GetCreatedAt(),
-			UpdatedAt:   gist.GetUpdatedAt(),
-		}
+	fmt.Printf("Fetching complete [total=%v]\n", len(allGists))
+	Library = fetchLibrary(allGists)
+	for _, snippet := range Library {
 		// Store gist in db
-		index.Index(gist.GetID(), f)
-		Library[idx] = &f
-		fmt.Printf("%+v\n", f)
+		index.Index(snippet.ID, snippet)
 	}
 	out, err := json.Marshal(allGists)
 	check(err)
@@ -132,12 +153,6 @@ func authenticate() {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println(index.DocCount())
 	fmt.Println(searchResults)
-	// for _, gist := range allGists {
-	// 	//gist2, resp, err := client.Gists.Get(ctx, *gist.ID)
-	// 	//check(err)
-	// 	//fmt.Printf("%s", gist2)
-	// 	//fmt.Printf("%s", resp)
-	// 	//fmt.Printf("%s\n\n", github.Stringify(gist))
-	// }
 }
