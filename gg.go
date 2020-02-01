@@ -16,13 +16,16 @@ func main() {
 
 	var token string
 	var rebuild bool
-	fmt.Println(token)
 
+	// These strings are reserved for commands
+	// and cannot be searched.
+	var queryReserve = []string{"login", "update", "tag"}
+	fmt.Println(queryReserve)
 	//client := github.NewClient(nil)
 	app := cli.NewApp()
 
 	app.Name = "gg"
-	app.Usage = "A tool for Github Gists"
+	app.Usage = "A tool for Github Gists\n\n\t gg <search term> - quick search"
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
 
@@ -126,8 +129,8 @@ func main() {
 			},
 		},
 		{
-			Name:      "tags",
-			Usage:     "List library tags",
+			Name:      "tag",
+			Usage:     "List or query tag",
 			UsageText: "\n\t\tgg tags\n",
 			Category:  "Query",
 			Action: func(c *cli.Context) error {

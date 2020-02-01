@@ -303,6 +303,7 @@ func fetchTags() map[string]int {
 	return tagCounts
 }
 
+// List all tags in library
 func listTags() {
 	tags := fetchTags()
 	keys := make([]string, 0, len(tags))
