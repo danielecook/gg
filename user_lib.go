@@ -10,11 +10,14 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/google/go-github/github"
 	. "github.com/logrusorgru/aurora"
+	"github.com/olekukonko/tablewriter"
 	"github.com/schollz/progressbar/v2"
 	"golang.org/x/oauth2"
 )
@@ -27,6 +30,7 @@ var libConfig = fmt.Sprintf("%s/config.json", getLibraryDirectory())
 
 // Global library configuration
 var libPath = fmt.Sprintf("%s/library.json", getLibraryDirectory())
+var libTagsPath = fmt.Sprintf("%s/tags.json", getLibraryDirectory())
 
 type configuration struct {
 	AuthToken  string `json:"token"`
@@ -40,6 +44,7 @@ type Snippet struct {
 	Description string                                  `json:"description"`
 	Public      bool                                    `json:"public"`
 	Files       map[github.GistFilename]github.GistFile `json:"files"`
+	Tags        []string                                `json:"tags"`
 	Comments    int                                     `json:"comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
@@ -48,13 +53,23 @@ type Snippet struct {
 	Commit      string                                  `json:"commit"`
 }
 
-func contains(arr []string, str string) bool {
-	for _, a := range arr {
-		if a == str {
-			return true
+type Tag struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// Extract tags from the description
+func parseTags(s string) []string {
+	re := regexp.MustCompile(`#([A-Za-z0-9]+)`)
+	r := re.FindAllStringSubmatch(s, -1)
+	var tagSet []string
+	if len(r) > 0 {
+		for _, tags := range r {
+			tagSet = append(tagSet, tags[1])
 		}
+		return tagSet
 	}
-	return false
+	return []string{}
 }
 
 // Fetch the raw text for a gist
@@ -169,6 +184,7 @@ func updateLibrary() {
 		Parse Library
 	*/
 	var Library []*Snippet
+	var LibraryTags []string
 	Library = make([]*Snippet, len(allGists))
 
 	errlog.Println(Bold("Loading Gists"))
@@ -202,26 +218,31 @@ func updateLibrary() {
 		}
 
 		bar.Add(1)
+		tags := parseTags(gist.GetDescription())
+		for _, t := range tags {
+			LibraryTags = append(LibraryTags, t)
+		}
 		var f = Snippet{
 			ID:          gistID,
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
 			Files:       items,
+			Tags:        tags,
 			Comments:    gist.GetComments(),
 			CreatedAt:   gist.GetCreatedAt(),
 			UpdatedAt:   gist.GetUpdatedAt(),
 			URL:         gist.GetHTMLURL(),
 		}
+
 		// Store gist in db
 		Library[idx] = &f
 	}
 
 	batch := DbIdx.NewBatch()
+
 	// Delete gist IDs that no longer exist
 	for _, existingId := range existingGistIds {
 		if contains(currentGistIds, existingId) == false {
-			fmt.Printf("REMOVING %v", existingId)
-			fmt.Println(batch.Size())
 			batch.Delete(existingId)
 		}
 	}
@@ -234,9 +255,25 @@ func updateLibrary() {
 	}
 
 	// Execute database updates
+	fmt.Println(batch.Size())
 	DbIdx.Batch(batch)
 
-	out, err := json.Marshal(Library)
+	/*
+		Store JSON
+	*/
+	// Tags
+	tagCounts := counter(LibraryTags)
+	var Tags []*Tag
+	for key, val := range tagCounts {
+		Tags = append(Tags, &Tag{Name: key, Count: val})
+	}
+	out, err := json.Marshal(Tags)
+	check(err)
+	err = ioutil.WriteFile(libTagsPath, out, 0644)
+	check(err)
+
+	// Library
+	out, err = json.Marshal(Library)
 	check(err)
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)
@@ -244,4 +281,44 @@ func updateLibrary() {
 	docCount, err := DbIdx.DocCount()
 	fmt.Println()
 	errlog.Println(Bold(Green(fmt.Sprintf("Loaded %v gists", docCount))))
+}
+
+/*
+	Tags
+*/
+
+func fetchTags() map[string]int {
+	var tagSet []Tag
+	tagCounts := make(map[string]int)
+	tagsFile, err := os.Open(libTagsPath)
+	if err != nil {
+		ThrowError("No Tags Summary File Found; Update library", 1)
+	}
+	defer tagsFile.Close()
+	jsonParser := json.NewDecoder(tagsFile)
+	jsonParser.Decode(&tagSet)
+	for _, tag := range tagSet {
+		tagCounts[tag.Name] = tag.Count
+	}
+	return tagCounts
+}
+
+func listTags() {
+	tags := fetchTags()
+	keys := make([]string, 0, len(tags))
+	for tag := range tags {
+		keys = append(keys, tag)
+	}
+	sort.Slice(keys, func(i, j int) bool { return tags[keys[i]] > tags[keys[j]] })
+
+	data := make([][]string, len(tags))
+	for idx, key := range keys {
+		data[idx] = []string{key, fmt.Sprintf("%x", tags[key])}
+	}
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Tag", "Count"})
+	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
+	table.AppendBulk(data)
+	table.Render()
+
 }

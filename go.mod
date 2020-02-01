@@ -13,6 +13,7 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/logrusorgru/aurora v0.0.0-20191116043053-66b7ad493a23
+	github.com/olekukonko/tablewriter v0.0.4
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v2 v2.15.0

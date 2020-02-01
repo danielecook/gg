@@ -15,6 +15,7 @@ var errlog = log.New(os.Stderr, "", 0)
 func main() {
 
 	var token string
+	var rebuild bool
 	fmt.Println(token)
 
 	//client := github.NewClient(nil)
@@ -122,6 +123,16 @@ func main() {
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
 				},
+			},
+		},
+		{
+			Name:      "tags",
+			Usage:     "List library tags",
+			UsageText: "\n\t\tgg tags\n",
+			Category:  "Query",
+			Action: func(c *cli.Context) error {
+				listTags()
+				return nil
 			},
 		},
 	}
