@@ -44,30 +44,44 @@ func main() {
 		},
 		{
 			Name:      "login",
-			Usage:     "Store your Authentication Token",
+			Usage:     "Login and Setup your gist library",
 			UsageText: "\n\t\tgg login [Authentication Token KEY]\n",
-			Category:  "Account",
+			Category:  "Library",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "authentication_token",
 					EnvVar:      "TOKEN",
 					Destination: &token,
 				},
+				cli.BoolFlag{
+					Name:        "r, rebuild",
+					Usage:       "Rebuild library",
+					Destination: &rebuild,
+				},
 			},
 			Action: func(c *cli.Context) error {
 				if token == "" {
-					/* sq login */
+					/* gg login */
 					errMsg := Bold(Red("\n\tError - Please supply your Authentication Token\n"))
 					return cli.NewExitError(errMsg, 2)
 				}
 				if len(token) != 40 {
-					/* sq login <wrong_length> */
+					/* gg login <wrong_length> */
 					return cli.NewExitError(Bold(Red("\n\tThe API Key should be 40 characters\n\n")), 32)
 				}
 				/* Store Token */
-				initializeLibrary(token)
+				initializeLibrary(token, rebuild)
 				updateLibrary()
-
+				return nil
+			},
+		},
+		{
+			Name:      "update",
+			Usage:     "Update gist library",
+			UsageText: "\n\t\tgg update\n",
+			Category:  "Library",
+			Action: func(c *cli.Context) error {
+				updateLibrary()
 				return nil
 			},
 		},
@@ -78,7 +92,6 @@ func main() {
 			Category:               "Snippets",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				// Running api_auth_user will update the library if possible
 				ls()
 				return nil
 			},

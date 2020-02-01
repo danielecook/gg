@@ -11,7 +11,7 @@ import (
 )
 
 // global search index
-var index = *openDb()
+var DbIdx = *openDb()
 var libDb = fmt.Sprintf("%s/db", getLibraryDirectory())
 
 // openDb
@@ -20,15 +20,15 @@ var libDb = fmt.Sprintf("%s/db", getLibraryDirectory())
 func openDb() *bleve.Index {
 	if _, err := os.Stat(libDb); os.IsNotExist(err) {
 		mapping := bleve.NewIndexMapping()
-		index, err := bleve.New(libDb, mapping)
+		DbIdx, err := bleve.New(libDb, mapping)
 		if err != nil {
-			ThrowError("Error creating library")
+			ThrowError("Error creating library", 1)
 		}
-		return &index
+		return &DbIdx
 	}
 	index, err := bleve.Open(libDb)
 	if err != nil {
-		ThrowError("Error opening library")
+		ThrowError("Error opening library", 1)
 	}
 	return &index
 }
@@ -51,7 +51,7 @@ const (
 
 func queryGists(docIds []string) *bleve.SearchResult {
 	sr := bleve.NewSearchRequest(query.NewDocIDQuery(docIds))
-	results, err := index.Search(sr)
+	results, err := DbIdx.Search(sr)
 	if err != nil {
 		return nil
 	}
@@ -59,11 +59,11 @@ func queryGists(docIds []string) *bleve.SearchResult {
 }
 
 func dumpDb() *bleve.SearchResult {
-	dc, _ := index.DocCount()
+	dc, _ := DbIdx.DocCount()
 	sr := bleve.NewSearchRequest(query.NewMatchAllQuery())
 	sr.Fields = []string{"*"}
 	sr.Size = int(dc)
-	results, err := index.Search(sr) // bleve/index_impl, bleve/search/collector/topn.Collect
+	results, err := DbIdx.Search(sr) // bleve/index_impl, bleve/search/collector/topn.Collect
 	if err != nil {
 		return nil
 	}
@@ -71,11 +71,11 @@ func dumpDb() *bleve.SearchResult {
 }
 
 func ls() ([]Note, error) {
-	dc, _ := index.DocCount()
+	dc, _ := DbIdx.DocCount()
 	sr := bleve.NewSearchRequest(query.NewMatchAllQuery())
 	sr.Fields = []string{"*"}
 	sr.Size = int(dc)
-	results, err := index.Search(sr) // bleve/index_impl, bleve/search/collector/topn.Collect
+	results, err := DbIdx.Search(sr) // bleve/index_impl, bleve/search/collector/topn.Collect
 	if err != nil {
 		return nil, errors.Wrap(err, "search failed")
 	}
@@ -84,8 +84,10 @@ func ls() ([]Note, error) {
 	for idx := range notes {
 		notes[idx] = toNote(results.Hits[idx])
 		var r = results.Hits[idx]
-		fmt.Println(r.Fields)
+		fmt.Println(r.ID)
+		fmt.Println(r.Fields["description"])
 	}
+	fmt.Println(len(results.Hits))
 
 	return notes, nil
 }

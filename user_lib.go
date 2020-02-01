@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/blevesearch/bleve"
 	"github.com/briandowns/spinner"
 	"github.com/google/go-github/github"
 	. "github.com/logrusorgru/aurora"
@@ -36,11 +35,11 @@ type configuration struct {
 
 // Snippet - Used to store gist data
 type Snippet struct {
+	// The ID is actually the github Node ID which is unique to the given commit
 	ID          string                                  `json:"id"`
 	Description string                                  `json:"description"`
 	Public      bool                                    `json:"public"`
 	Files       map[github.GistFilename]github.GistFile `json:"files"`
-	Content     string                                  `json:"content"`
 	Comments    int                                     `json:"comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
@@ -56,53 +55,6 @@ func contains(arr []string, str string) bool {
 		}
 	}
 	return false
-}
-
-// parseLibrary
-// Loads raw text from gists
-// and parses
-func parseLibrary(allGists []*github.Gist) []*Snippet {
-	var Library []*Snippet
-	Library = make([]*Snippet, len(allGists))
-
-	errlog.Println(Bold("Loading Gists"))
-
-	// Dump previous DB to determine whether
-	// gists need to be updated.
-	existingGists := dumpDb()
-	existingGistIds := make([]string, len(existingGists.Hits))
-	for idx, gist := range existingGists.Hits {
-		existingGistIds[idx] = gist.ID
-	}
-
-	// Initialize progress bar
-	bar := progressbar.New(len(allGists))
-	for idx, gist := range allGists {
-		items := make(map[github.GistFilename]github.GistFile)
-		// Check if gist has already been loaded
-		// if not, download files.
-		if contains(existingGistIds, gist.GetNodeID()) == false {
-			for k := range gist.Files {
-				var updated = gist.Files[k]
-				var url = string(*gist.Files[k].RawURL)
-				updated.Content = fetchContent(url)
-				items[k] = updated
-			}
-		}
-		bar.Add(1)
-		var f = Snippet{ID: gist.GetNodeID(),
-			Description: gist.GetDescription(),
-			Public:      gist.GetPublic(),
-			Files:       items,
-			Comments:    gist.GetComments(),
-			CreatedAt:   gist.GetCreatedAt(),
-			UpdatedAt:   gist.GetUpdatedAt(),
-			URL:         gist.GetHTMLURL(),
-		}
-		// Store gist in db
-		Library[idx] = &f
-	}
-	return Library
 }
 
 // Fetch the raw text for a gist
@@ -132,8 +84,12 @@ func deleteLibrary() {
 	os.RemoveAll(getLibraryDirectory())
 }
 
-func initializeLibrary(AuthToken string) bool {
-	deleteLibrary()
+func initializeLibrary(AuthToken string, rebuild bool) bool {
+	if rebuild {
+		deleteLibrary()
+		// Reload index
+		DbIdx = *openDb()
+	}
 	var config = configuration{
 		AuthToken: string(AuthToken),
 	}
@@ -147,8 +103,16 @@ func initializeLibrary(AuthToken string) bool {
 }
 
 func getConfig() configuration {
+	// Check that config exists
+	if _, err := os.Stat(libConfig); os.IsNotExist(err) {
+		errMsg := "No config found. Run 'gg login'"
+		ThrowError(errMsg, 2)
+	}
 	jsonFile, err := os.Open(libConfig)
-	check(err)
+	if err != nil {
+		errMsg := "JSON Parse Error. Run 'gg login'"
+		ThrowError(errMsg, 2)
+	}
 	defer jsonFile.Close()
 
 	configData, _ := ioutil.ReadAll(jsonFile)
@@ -173,7 +137,10 @@ func updateLibrary() {
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Build our new spinner
 	s.Writer = os.Stderr
 	s.Start() // Start the spinner
-	/* Fetch list of users gists */
+
+	/*
+		List User Gists
+	*/
 	var allGists []*github.Gist
 	page := 1
 
@@ -192,32 +159,89 @@ func updateLibrary() {
 		}
 		opt.Page = resp.NextPage
 
-		errlog.Printf("Loading [total=%v] [page=%v]\n", len(allGists), page)
+		errlog.Printf("Listing [total=%v] [page=%v]\n", len(allGists), page)
 		page++
 	}
-	errlog.Printf("Fetching complete [total=%v]\n", len(allGists))
+	errlog.Printf("Listing complete [total=%v]\n", len(allGists))
 	s.Stop()
 
-	// Parse the resulting library
+	/*
+		Parse Library
+	*/
 	var Library []*Snippet
-	Library = parseLibrary(allGists)
+	Library = make([]*Snippet, len(allGists))
 
-	for _, snippet := range Library {
-		// Store gist in db
-		index.Index(snippet.ID, snippet)
+	errlog.Println(Bold("Loading Gists"))
+
+	// Dump previous DB to determine whether
+	// gists need to be updated.
+	existingGists := dumpDb()
+	existingGistIds := make([]string, len(existingGists.Hits))
+	for idx, gist := range existingGists.Hits {
+		existingGistIds[idx] = gist.ID
 	}
+
+	currentGistIds := make([]string, len(allGists))
+
+	// Initialize progress bar
+	bar := progressbar.New(len(allGists))
+	for idx, gist := range allGists {
+		gistID := fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
+		currentGistIds[idx] = gistID
+
+		items := make(map[github.GistFilename]github.GistFile)
+		// Check if gist has already been loaded
+		// if not, download files.
+		if contains(existingGistIds, gistID) == false {
+			for k := range gist.Files {
+				var updated = gist.Files[k]
+				var url = string(*gist.Files[k].RawURL)
+				updated.Content = fetchContent(url)
+				items[k] = updated
+			}
+		}
+
+		bar.Add(1)
+		var f = Snippet{
+			ID:          gistID,
+			Description: gist.GetDescription(),
+			Public:      gist.GetPublic(),
+			Files:       items,
+			Comments:    gist.GetComments(),
+			CreatedAt:   gist.GetCreatedAt(),
+			UpdatedAt:   gist.GetUpdatedAt(),
+			URL:         gist.GetHTMLURL(),
+		}
+		// Store gist in db
+		Library[idx] = &f
+	}
+
+	batch := DbIdx.NewBatch()
+	// Delete gist IDs that no longer exist
+	for _, existingId := range existingGistIds {
+		if contains(currentGistIds, existingId) == false {
+			fmt.Printf("REMOVING %v", existingId)
+			fmt.Println(batch.Size())
+			batch.Delete(existingId)
+		}
+	}
+
+	for _, gist := range Library {
+		// Store gist in db if it is not there already
+		if contains(existingGistIds, gist.ID) == false {
+			batch.Index(gist.ID, gist)
+		}
+	}
+
+	// Execute database updates
+	DbIdx.Batch(batch)
+
 	out, err := json.Marshal(Library)
 	check(err)
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)
 
-	query := bleve.NewMatchQuery("annotation")
-	search := bleve.NewSearchRequest(query)
-	searchResults, err := index.Search(search)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(index.DocCount())
-	fmt.Println(searchResults)
+	docCount, err := DbIdx.DocCount()
+	fmt.Println()
+	errlog.Println(Bold(Green(fmt.Sprintf("Loaded %v gists", docCount))))
 }
