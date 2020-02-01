@@ -54,13 +54,19 @@ func dumpDb() *bleve.SearchResult {
 
 // Format search results as table
 func formatResults(results *bleve.SearchResult) {
+	// table := tablewriter.NewWriter(os.Stdout)
+	// table.SetHeader([]string{"ID", "Description", "Filename"})
+	// table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
+	// table.AppendBulk(data)
+	// table.Render()
+
 	for _, gist := range results.Hits {
 		fmt.Println(gist)
 	}
 }
 
 // ls - the primary query interface
-func ls(searchTerm string, sortBy string, tag string) *bleve.SearchResult {
+func ls(searchTerm string, sortBy string, tag string) {
 	var qstring string
 
 	if searchTerm != "" {
@@ -76,9 +82,6 @@ func ls(searchTerm string, sortBy string, tag string) *bleve.SearchResult {
 	q := query.NewQueryStringQuery(qstring)
 	sr := bleve.NewSearchRequest(q)
 
-	//	q := query.NewMatchAllQuery()
-	//	sr = bleve.NewSearchRequest(q)
-	//}
 	dc, _ := DbIdx.DocCount()
 	sr.Fields = []string{"*"}
 	sr.Size = int(dc)
@@ -91,5 +94,5 @@ func ls(searchTerm string, sortBy string, tag string) *bleve.SearchResult {
 	for _, gist := range results.Hits {
 		fmt.Println(gist.Fields["Description"])
 	}
-	return results
+	formatResults(results)
 }

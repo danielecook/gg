@@ -16,7 +16,7 @@ func main() {
 
 	// These strings are reserved for commands
 	// and cannot be searched.
-	var queryReserve = []string{"login", "update", "tag"}
+	var queryReserve = []string{"login", "update", "tag", "tags"}
 	fmt.Println(queryReserve)
 	//client := github.NewClient(nil)
 	app := cli.NewApp()
@@ -125,8 +125,9 @@ func main() {
 		},
 		{
 			Name: "tag",
-			//Usage:     "List or query tag",
-			//UsageText: "\n\t\tgg tag [tag name]\n",
+			Aliases: []string{"tags"},
+			Usage:     "List or query tag",
+			UsageText: "\n\t\tgg tag [tag name] [query]\n",
 			Category: "Query",
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -137,16 +138,16 @@ func main() {
 			},
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
-					listTags()
+					ListTags()
 				}
-				ls("bloom", "", c.Args().Get(0))
+				ls("", "", c.Args().Get(0))
 				return nil
 			},
 		},
 	}
 
 	err := app.Run(os.Args)
-	formatResults(dumpDb())
+	//formatResults(dumpDb())
 	if err != nil {
 		log.Fatal(err)
 	}
