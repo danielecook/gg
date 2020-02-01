@@ -5,9 +5,7 @@ import (
 	"os"
 
 	"github.com/blevesearch/bleve"
-	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
-	"github.com/pkg/errors"
 )
 
 // global search index
@@ -33,22 +31,6 @@ func openDb() *bleve.Index {
 	return &index
 }
 
-type Note struct {
-	ID         string
-	Body       string
-	Title      string                  // some short title of this note
-	Fragments  search.FieldFragmentMap // only used for query results, show a snippet of text around found terms
-	AccessTime int64                   // time.Unix(), see NewIndexMapping():accessTime_fmap for FieldMapping
-}
-
-const (
-	BODY        = "Body"
-	ACCESS_TIME = "AccessTime"
-	TITLE       = "Title"
-
-	DEFAULT_BATCH_SIZE = 1000
-)
-
 func queryGists(docIds []string) *bleve.SearchResult {
 	sr := bleve.NewSearchRequest(query.NewDocIDQuery(docIds))
 	results, err := DbIdx.Search(sr)
@@ -70,48 +52,44 @@ func dumpDb() *bleve.SearchResult {
 	return results
 }
 
-func ls() ([]Note, error) {
-	dc, _ := DbIdx.DocCount()
-	sr := bleve.NewSearchRequest(query.NewMatchAllQuery())
-	sr.Fields = []string{"*"}
-	sr.Size = int(dc)
-	results, err := DbIdx.Search(sr) // bleve/index_impl, bleve/search/collector/topn.Collect
-	if err != nil {
-		return nil, errors.Wrap(err, "search failed")
+// Format search results as table
+func formatResults(results *bleve.SearchResult) {
+	for _, gist := range results.Hits {
+		fmt.Println(gist)
 	}
-
-	notes := make([]Note, len(results.Hits))
-	for idx := range notes {
-		notes[idx] = toNote(results.Hits[idx])
-		var r = results.Hits[idx]
-		fmt.Println(r.ID)
-		fmt.Println(r.Fields["description"])
-	}
-	fmt.Println(len(results.Hits))
-
-	return notes, nil
 }
 
-func toNote(doc *search.DocumentMatch) Note {
-	note := Note{}
-	note.ID = doc.ID
-	if atime, ok := doc.Fields[ACCESS_TIME]; ok {
-		if v, ok := atime.(float64); ok {
-			note.AccessTime = int64(v)
-		}
+// ls - the primary query interface
+func ls(searchTerm string, sortBy string, tag string) *bleve.SearchResult {
+	var qstring string
+
+	if searchTerm != "" {
+		qstring = fmt.Sprintf("%s", searchTerm)
 	}
-	if body, ok := doc.Fields[BODY]; ok {
-		if v, ok := body.(string); ok {
-			note.Body = v
-		}
+
+	if tag != "" {
+		qstring = fmt.Sprintf("%s +Tags:%v", qstring, tag)
 	}
-	if title, ok := doc.Fields[TITLE]; ok {
-		if v, ok := title.(string); ok {
-			note.Title = v
-		}
+
+	fmt.Println(qstring)
+
+	q := query.NewQueryStringQuery(qstring)
+	sr := bleve.NewSearchRequest(q)
+
+	//	q := query.NewMatchAllQuery()
+	//	sr = bleve.NewSearchRequest(q)
+	//}
+	dc, _ := DbIdx.DocCount()
+	sr.Fields = []string{"*"}
+	sr.Size = int(dc)
+	//sr.SortBy([]string{"UpdatedAt"})
+	results, err := DbIdx.Search(sr)
+	if err != nil {
+		fmt.Println("No Results")
 	}
-	if doc.Fragments != nil {
-		note.Fragments = doc.Fragments
+	// Implement tag filtering
+	for _, gist := range results.Hits {
+		fmt.Println(gist.Fields["Description"])
 	}
-	return note
+	return results
 }

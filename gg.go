@@ -14,9 +14,6 @@ var errlog = log.New(os.Stderr, "", 0)
 
 func main() {
 
-	var token string
-	var rebuild bool
-
 	// These strings are reserved for commands
 	// and cannot be searched.
 	var queryReserve = []string{"login", "update", "tag"}
@@ -53,28 +50,26 @@ func main() {
 			Category:  "Library",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:        "authentication_token",
-					EnvVar:      "TOKEN",
-					Destination: &token,
+					Name:   "authentication_token",
+					EnvVar: "TOKEN",
 				},
 				cli.BoolFlag{
-					Name:        "r, rebuild",
-					Usage:       "Rebuild library",
-					Destination: &rebuild,
+					Name:  "r, rebuild",
+					Usage: "Rebuild library",
 				},
 			},
 			Action: func(c *cli.Context) error {
-				if token == "" {
+				if c.String("authentication_token") == "" {
 					/* gg login */
 					errMsg := Bold(Red("\n\tError - Please supply your Authentication Token\n"))
 					return cli.NewExitError(errMsg, 2)
 				}
-				if len(token) != 40 {
+				if len(c.String("authentication_token")) != 40 {
 					/* gg login <wrong_length> */
 					return cli.NewExitError(Bold(Red("\n\tThe API Key should be 40 characters\n\n")), 32)
 				}
 				/* Store Token */
-				initializeLibrary(token, rebuild)
+				initializeLibrary(c.String("authentication_token"), c.Bool("rebuild"))
 				updateLibrary()
 				return nil
 			},
@@ -96,7 +91,7 @@ func main() {
 			Category:               "Snippets",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				ls()
+				ls("", "", "")
 				return nil
 			},
 			Flags: []cli.Flag{
@@ -129,18 +124,29 @@ func main() {
 			},
 		},
 		{
-			Name:      "tag",
-			Usage:     "List or query tag",
-			UsageText: "\n\t\tgg tags\n",
-			Category:  "Query",
+			Name: "tag",
+			//Usage:     "List or query tag",
+			//UsageText: "\n\t\tgg tag [tag name]\n",
+			Category: "Query",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "query",
+					Value: "",
+					Usage: "Filter by tag (omit the # prefix)",
+				},
+			},
 			Action: func(c *cli.Context) error {
-				listTags()
+				if c.Args().First() == "" {
+					listTags()
+				}
+				ls("bloom", "", c.Args().Get(0))
 				return nil
 			},
 		},
 	}
 
 	err := app.Run(os.Args)
+	formatResults(dumpDb())
 	if err != nil {
 		log.Fatal(err)
 	}

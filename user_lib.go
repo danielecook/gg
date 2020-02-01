@@ -40,17 +40,17 @@ type configuration struct {
 // Snippet - Used to store gist data
 type Snippet struct {
 	// The ID is actually the github Node ID which is unique to the given commit
-	ID          string                                  `json:"id"`
-	Description string                                  `json:"description"`
-	Public      bool                                    `json:"public"`
-	Files       map[github.GistFilename]github.GistFile `json:"files"`
-	Tags        []string                                `json:"tags"`
-	Comments    int                                     `json:"comments"`
+	ID          string                                  `json:"ID"`
+	Description string                                  `json:"Description"`
+	Public      bool                                    `json:"Public"`
+	Files       map[github.GistFilename]github.GistFile `json:"Files"`
+	Tags        []string                                `json:"Tags"`
+	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
 	Snippet     string                                  `json:"Snippet"`
 	URL         string                                  `json:"URL"`
-	Commit      string                                  `json:"commit"`
+	Commit      string                                  `json:"Commit"`
 }
 
 type Tag struct {
@@ -238,6 +238,7 @@ func updateLibrary() {
 		Library[idx] = &f
 	}
 
+	errlog.Println(Bold("Indexing Gists"))
 	batch := DbIdx.NewBatch()
 
 	// Delete gist IDs that no longer exist
@@ -255,7 +256,6 @@ func updateLibrary() {
 	}
 
 	// Execute database updates
-	fmt.Println(batch.Size())
 	DbIdx.Batch(batch)
 
 	/*
