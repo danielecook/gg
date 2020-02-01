@@ -57,18 +57,17 @@ func main() {
 			Action: func(c *cli.Context) error {
 				if token == "" {
 					/* sq login */
-					err_msg := Bold(Red("\n\tError - Please supply your Authentication Token\n"))
-					return cli.NewExitError(err_msg, 2)
-				} else {
-					if len(token) != 40 {
-						/* sq login <wrong_length> */
-						return cli.NewExitError(Bold(Red("\n\tThe API Key should be 40 characters\n\n")), 32)
-					}
-					/* Store Token */
-					setupLibrary(token)
-					authenticate()
-
+					errMsg := Bold(Red("\n\tError - Please supply your Authentication Token\n"))
+					return cli.NewExitError(errMsg, 2)
 				}
+				if len(token) != 40 {
+					/* sq login <wrong_length> */
+					return cli.NewExitError(Bold(Red("\n\tThe API Key should be 40 characters\n\n")), 32)
+				}
+				/* Store Token */
+				initializeLibrary(token)
+				updateLibrary()
+
 				return nil
 			},
 		},
@@ -80,7 +79,6 @@ func main() {
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
 				// Running api_auth_user will update the library if possible
-				fmt.Printf("GGGGG")
 				ls()
 				return nil
 			},

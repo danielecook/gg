@@ -25,10 +25,8 @@ var errorMsg = map[string]string{
 	"ServerError":         "Cannot connect to server",
 }
 
+// ThrowError - Formats an error for CLI
 func ThrowError(errString string) {
-	/*
-		Throws an error
-	*/
 	for k := range errorMsg {
 		if errString == k {
 			fmt.Fprint(os.Stderr, fmt.Sprintf("\n\t%s\n\n", Bold(Red(errorMsg[errString]))))

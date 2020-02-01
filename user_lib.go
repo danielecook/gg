@@ -20,18 +20,21 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// global background context
+var ctx = context.Background()
+
 // libConfig - Global library configuration
 var libConfig = fmt.Sprintf("%s/config.json", getLibraryDirectory())
 
 // Global library configuration
 var libPath = fmt.Sprintf("%s/library.json", getLibraryDirectory())
-var libDb = fmt.Sprintf("%s/db", getLibraryDirectory())
 
 type configuration struct {
 	AuthToken  string `json:"token"`
 	LastUpdate string `json:"last_update"`
 }
 
+// Snippet - Used to store gist data
 type Snippet struct {
 	ID          string                                  `json:"id"`
 	Description string                                  `json:"description"`
@@ -46,25 +49,48 @@ type Snippet struct {
 	Commit      string                                  `json:"commit"`
 }
 
+func contains(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
+}
+
 // parseLibrary
+// Loads raw text from gists
+// and parses
 func parseLibrary(allGists []*github.Gist) []*Snippet {
 	var Library []*Snippet
 	Library = make([]*Snippet, len(allGists))
 
 	errlog.Println(Bold("Loading Gists"))
 
+	// Dump previous DB to determine whether
+	// gists need to be updated.
+	existingGists := dumpDb()
+	existingGistIds := make([]string, len(existingGists.Hits))
+	for idx, gist := range existingGists.Hits {
+		existingGistIds[idx] = gist.ID
+	}
+
 	// Initialize progress bar
 	bar := progressbar.New(len(allGists))
 	for idx, gist := range allGists {
 		items := make(map[github.GistFilename]github.GistFile)
-		for k, _ := range gist.Files {
-			var updated = gist.Files[k]
-			var url = string(*gist.Files[k].RawURL)
-			updated.Content = fetchContent(url)
-			items[k] = updated
+		// Check if gist has already been loaded
+		// if not, download files.
+		if contains(existingGistIds, gist.GetNodeID()) == false {
+			for k := range gist.Files {
+				var updated = gist.Files[k]
+				var url = string(*gist.Files[k].RawURL)
+				updated.Content = fetchContent(url)
+				items[k] = updated
+			}
 		}
 		bar.Add(1)
-		var f = Snippet{ID: gist.GetID(),
+		var f = Snippet{ID: gist.GetNodeID(),
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
 			Files:       items,
@@ -74,7 +100,6 @@ func parseLibrary(allGists []*github.Gist) []*Snippet {
 			URL:         gist.GetHTMLURL(),
 		}
 		// Store gist in db
-		//index.Index(gist.GetID(), f)
 		Library[idx] = &f
 	}
 	return Library
@@ -107,7 +132,7 @@ func deleteLibrary() {
 	os.RemoveAll(getLibraryDirectory())
 }
 
-func setupLibrary(AuthToken string) bool {
+func initializeLibrary(AuthToken string) bool {
 	deleteLibrary()
 	var config = configuration{
 		AuthToken: string(AuthToken),
@@ -132,34 +157,30 @@ func getConfig() configuration {
 	return config
 }
 
-func authenticate() {
-	ctx := context.Background()
+// authenticate - Setup user authentication with github token
+func authenticate() *github.Client {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: getConfig().AuthToken},
 	)
 	tc := oauth2.NewClient(ctx, ts)
+	return github.NewClient(tc)
+}
 
-	client := github.NewClient(tc)
+func updateLibrary() {
+	client := authenticate()
 
-	opt := &github.GistListOptions{
-		ListOptions: github.ListOptions{Page: 0, PerPage: 100},
-	}
-
-	// Create search index with bleve
-	mapping := bleve.NewIndexMapping()
-	index, err := bleve.New(libDb, mapping)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	/* Use spinner for initial fetching of gist list */
+	// Add a spinner
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Build our new spinner
 	s.Writer = os.Stderr
 	s.Start() // Start the spinner
 	/* Fetch list of users gists */
 	var allGists []*github.Gist
-	var Library []*Snippet
 	page := 1
+
+	opt := &github.GistListOptions{
+		ListOptions: github.ListOptions{Page: 0, PerPage: 100},
+	}
+
 	for {
 
 		gists, resp, err := client.Gists.List(ctx, "", opt)
@@ -172,11 +193,13 @@ func authenticate() {
 		opt.Page = resp.NextPage
 
 		errlog.Printf("Loading [total=%v] [page=%v]\n", len(allGists), page)
-		page += 1
-
+		page++
 	}
 	errlog.Printf("Fetching complete [total=%v]\n", len(allGists))
 	s.Stop()
+
+	// Parse the resulting library
+	var Library []*Snippet
 	Library = parseLibrary(allGists)
 
 	for _, snippet := range Library {
