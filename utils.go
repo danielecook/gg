@@ -33,3 +33,10 @@ func counter(arr []string) map[string]int {
 	}
 	return count
 }
+
+func insert(slice []string, index int, value string) []string {
+	slice = append(slice, "")
+	copy(slice[index+1:], slice[index:])
+	slice[index] = value
+	return slice
+}

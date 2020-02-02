@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	. "github.com/logrusorgru/aurora"
 	"github.com/pkg/browser"
@@ -16,13 +17,14 @@ func main() {
 
 	// These strings are reserved for commands
 	// and cannot be searched.
-	var queryReserve = []string{"login", "update", "tag", "tags"}
+	var queryReserve = []string{"login", "update", "tag", "tags", "-h", "--help", "help"}
+	var searchTerm string
 	fmt.Println(queryReserve)
 	//client := github.NewClient(nil)
 	app := cli.NewApp()
 
 	app.Name = "gg"
-	app.Usage = "A tool for Github Gists\n\n\t gg <search term> - quick search"
+	app.Usage = "A tool for Github Gists\n\n\t gg <search term> - quick search\n\n\t gg <ID> - retrieve gist"
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
 
@@ -91,7 +93,12 @@ func main() {
 			Category:               "Snippets",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				ls("", "", "")
+				// build search term
+				for i := 0; i <= c.NArg(); i++ {
+					searchTerm += " " + c.Args().Get(i)
+				}
+				searchTerm = strings.Trim(searchTerm, " ")
+				ls(searchTerm, "", "")
 				return nil
 			},
 			Flags: []cli.Flag{
@@ -124,11 +131,11 @@ func main() {
 			},
 		},
 		{
-			Name: "tag",
-			Aliases: []string{"tags"},
+			Name:      "tag",
+			Aliases:   []string{"tags"},
 			Usage:     "List or query tag",
 			UsageText: "\n\t\tgg tag [tag name] [query]\n",
-			Category: "Query",
+			Category:  "Query",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "query",
@@ -146,8 +153,21 @@ func main() {
 		},
 	}
 
-	err := app.Run(os.Args)
-	//formatResults(dumpDb())
+	/*
+		Run search operation if keyword not used
+	*/
+	var args []string
+	if len(os.Args) == 1 || contains(queryReserve, os.Args[1]) == false {
+		// Running ./gg and ./gg ls are equivelent
+		for i := 1; i < len(os.Args); i++ {
+			searchTerm += " " + os.Args[i]
+		}
+		searchTerm = strings.Trim(searchTerm, " ")
+		args = insert(os.Args, 1, "ls")
+	} else {
+		args = os.Args
+	}
+	err := app.Run(args)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -38,7 +38,10 @@ type configuration struct {
 // Snippet - Used to store gist data
 type Snippet struct {
 	// The ID is actually the github Node ID which is unique to the given commit
+	// IDX is A convenience numeric ID for listing individual snippets
 	ID          string                                  `json:"ID"`
+	IDX         int                                     `json:"IDX"`
+	Owner       string                                  `json:"Owner"`
 	Description string                                  `json:"Description"`
 	Public      bool                                    `json:"Public"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
@@ -71,7 +74,7 @@ func parseTags(s string) []string {
 }
 
 // Fetch the raw text for a gist
-func fetchContent(url string) *string {
+func fetchContent(url string, ch chan *string) {
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
@@ -82,7 +85,7 @@ func fetchContent(url string) *string {
 		panic(err)
 	}
 	var result = string(content)
-	return &result
+	ch <- &result
 }
 
 func getLibraryDirectory() string {
@@ -162,7 +165,6 @@ func updateLibrary() {
 	}
 
 	for {
-
 		gists, resp, err := client.Gists.List(ctx, "", opt)
 		check(err)
 
@@ -177,6 +179,8 @@ func updateLibrary() {
 	}
 	errlog.Printf("Listing complete [total=%v]\n", len(allGists))
 	s.Stop()
+
+	//allGists = allGists[0:50]
 
 	/*
 		Parse Library
@@ -199,18 +203,23 @@ func updateLibrary() {
 
 	// Initialize progress bar
 	bar := progressbar.New(len(allGists))
+	// Not sure if this concurrent method is working in parallel or not...
+	ch := make(chan *string, 5)
 	for idx, gist := range allGists {
+		// A unique id is constructed from the ID and date last updated.
 		gistID := fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
 		currentGistIds[idx] = gistID
 
 		items := make(map[github.GistFilename]github.GistFile)
 		// Check if gist has already been loaded
 		// if not, download files.
+
 		if contains(existingGistIds, gistID) == false {
 			for k := range gist.Files {
 				var updated = gist.Files[k]
 				var url = string(*gist.Files[k].RawURL)
-				updated.Content = fetchContent(url)
+				go fetchContent(url, ch)
+				updated.Content = <-ch
 				items[k] = updated
 			}
 		}
@@ -222,6 +231,8 @@ func updateLibrary() {
 		}
 		var f = Snippet{
 			ID:          gistID,
+			IDX:         idx,
+			Owner:       string(gist.GetOwner().GetLogin()),
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
 			Files:       items,
@@ -236,13 +247,13 @@ func updateLibrary() {
 		Library[idx] = &f
 	}
 
-	errlog.Println(Bold("Indexing Gists"))
+	errlog.Println(Bold("\nIndexing Gists"))
 	batch := DbIdx.NewBatch()
 
 	// Delete gist IDs that no longer exist
-	for _, existingId := range existingGistIds {
-		if contains(currentGistIds, existingId) == false {
-			batch.Delete(existingId)
+	for _, existingID := range existingGistIds {
+		if contains(currentGistIds, existingID) == false {
+			batch.Delete(existingID)
 		}
 	}
 
