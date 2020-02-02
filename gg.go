@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	. "github.com/logrusorgru/aurora"
@@ -93,12 +94,16 @@ func main() {
 			Category:               "Snippets",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				// build search term
-				for i := 0; i <= c.NArg(); i++ {
-					searchTerm += " " + c.Args().Get(i)
+				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
+					outputGist(v)
+				} else {
+					// build search term
+					for i := 0; i <= c.NArg(); i++ {
+						searchTerm += " " + c.Args().Get(i)
+					}
+					searchTerm = strings.Trim(searchTerm, " ")
+					ls(searchTerm, "", "")
 				}
-				searchTerm = strings.Trim(searchTerm, " ")
-				ls(searchTerm, "", "")
 				return nil
 			},
 			Flags: []cli.Flag{

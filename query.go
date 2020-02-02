@@ -3,10 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 
+	"github.com/alecthomas/chroma/lexers"
+	"github.com/alecthomas/chroma/quick"
 	"github.com/blevesearch/bleve"
+	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
@@ -116,6 +120,47 @@ func ls(searchTerm string, sortBy string, tag string) {
 	table.Render()
 }
 
-func outputGist() {
+func highlight(out io.Writer, filename string, content string, formatter string, style string) {
+	/*
+		Highlights code
 
+		Formatters:
+			html
+			json
+			noop
+			terminal
+			terminal16m
+			terminal256
+			tokens
+	*/
+	lexer := lexers.Match(filename)
+	if lexer == nil || lexer.Config().Name == "plaintext" {
+		lexer = lexers.Analyse(content)
+		if lexer == nil {
+			lexer = lexers.Fallback
+		}
+	}
+	quick.Highlight(out, content, lexer.Config().Name, formatter, style)
+}
+
+func lookupGist(gistIdx int) *search.DocumentMatch {
+	q := query.NewQueryStringQuery(fmt.Sprintf("IDX:%v", gistIdx))
+	fmt.Println(gistIdx)
+	sr := bleve.NewSearchRequest(q)
+	sr.Fields = []string{"*"}
+	searchResults, err := DbIdx.Search(sr)
+	if err != nil {
+		panic(err)
+	}
+	return searchResults.Hits[0]
+}
+
+func outputGist(gistIdx int) {
+	gist := lookupGist(gistIdx)
+	fileSet := gist.Fields["Files"]
+	fmt.Println(gist.Fields["Files"])
+	fmt.Println(fileSet)
+	//for idx, file := range gist.Fields["Files"] {
+	//	highlight(snippet_ql_file, filename, content, "html", "colorful")
+	//}
 }
