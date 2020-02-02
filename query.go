@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/quick"
@@ -157,9 +159,28 @@ func lookupGist(gistIdx int) *search.DocumentMatch {
 
 func outputGist(gistIdx int) {
 	gist := lookupGist(gistIdx)
-	fileSet := gist.Fields["Files"]
-	fmt.Println(gist.Fields["Files"])
-	fmt.Println(fileSet)
+	// Parse bleve index which flattens results
+	keys := reflect.ValueOf(gist.Fields).MapKeys()
+	strkeys := make([]string, len(keys))
+	for i := 0; i < len(keys); i++ {
+		strkeys[i] = keys[i].String()
+	}
+	var fsplit []string
+	fileset := make([]map[string]string, gist.Fields["NFiles"].(int))
+	for idx := range strkeys {
+		fsplit = strings.Split(strkeys[idx], ".")
+		if fsplit[0] == "Files" {
+			field := fsplit[len(fsplit)-1]
+			filename := strings.Join(fsplit[1:len(fsplit)-1], ".")
+			value := gist.Fields[strkeys[idx]]
+			fmt.Printf("%s: %s = %v\n", filename, field, value)
+			//fileset[field] = filename
+		}
+	}
+	fmt.Println(fileset)
+
+	//fmt.Println(gist.Fields["Files"])
+	//fmt.Println(fileSet)
 	//for idx, file := range gist.Fields["Files"] {
 	//	highlight(snippet_ql_file, filename, content, "html", "colorful")
 	//}

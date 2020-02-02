@@ -45,13 +45,13 @@ type Snippet struct {
 	Description string                                  `json:"Description"`
 	Public      bool                                    `json:"Public"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
+	NFiles      int                                     `json:"NFiles"`
 	Tags        []string                                `json:"Tags"`
 	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
 	Snippet     string                                  `json:"Snippet"`
 	URL         string                                  `json:"URL"`
-	Commit      string                                  `json:"Commit"`
 }
 
 type Tag struct {
@@ -236,6 +236,7 @@ func updateLibrary() {
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
 			Files:       items,
+			NFiles:      len(items),
 			Tags:        tags,
 			Comments:    gist.GetComments(),
 			CreatedAt:   gist.GetCreatedAt(),
