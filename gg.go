@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blevesearch/bleve/search"
 	. "github.com/logrusorgru/aurora"
 	"github.com/pkg/browser"
 	"github.com/urfave/cli"
@@ -17,7 +18,7 @@ func main() {
 
 	// These strings are reserved for commands
 	// and cannot be searched.
-	var queryReserve = []string{"login", "update", "tag", "tags", "-h", "--help", "help", "ls"}
+	var queryReserve = []string{"new", "open", "search", "login", "update", "tag", "tags", "-h", "--help", "help", "ls"}
 	var searchTerm string
 
 	app := cli.NewApp()
@@ -41,6 +42,21 @@ func main() {
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
 				browser.OpenURL("https://gist.github.com")
+				return nil
+			},
+		},
+		{
+			Name:                   "open",
+			Usage:                  "Open web browser for gist",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
+				var gist *search.DocumentMatch
+				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
+					gist = lookupGist(v)
+				} else {
+					ThrowError("Invalid Index", 1)
+				}
+				browser.OpenURL(gist.Fields["URL"].(string))
 				return nil
 			},
 		},
@@ -88,7 +104,7 @@ func main() {
 		{
 			Name:                   "ls",
 			Usage:                  "List and filter",
-			UsageText:              "\n\t\tsq ls [options] [query]\n\n\t\tquery - Searches most fields",
+			UsageText:              "\n\t\tgg ls [options] [query]\n\n\t\tquery - Searches most fields",
 			Category:               "Snippets",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
@@ -100,7 +116,7 @@ func main() {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", "")
+					ls(searchTerm, "", c.String("tag"), c.String("language"), c.String("status"))
 				}
 				return nil
 			},
@@ -123,6 +139,11 @@ func main() {
 					Name:  "f, forked",
 					Usage: "Filter by forked snippets",
 				},
+				cli.StringFlag{
+					Name:  "status",
+					Value: "all",
+					Usage: "Filter by (all|public|private)",
+				},
 				cli.BoolFlag{
 					Name:  "w, syntax",
 					Usage: "Output with syntax highlighting",
@@ -131,6 +152,20 @@ func main() {
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
 				},
+			},
+		},
+		{
+			Name:      "search",
+			Usage:     "Use fuzzy search to find Gist",
+			UsageText: "\n\t\tgg search query\n",
+			Category:  "Query",
+			Action: func(c *cli.Context) error {
+				for i := 0; i <= c.NArg(); i++ {
+					searchTerm += " " + c.Args().Get(i)
+				}
+				searchTerm = strings.Trim(searchTerm, " ")
+				fuzzySearch(searchTerm)
+				return nil
 			},
 		},
 		{
@@ -150,7 +185,7 @@ func main() {
 				if c.Args().First() == "" {
 					ListTags()
 				} else {
-					ls("", "", c.Args().Get(0))
+					ls("", "", c.Args().Get(0), "", "")
 				}
 				return nil
 			},

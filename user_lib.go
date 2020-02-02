@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -61,8 +62,8 @@ type Snippet struct {
 	Public      bool                                    `json:"Public"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
 	NFiles      int                                     `json:"NFiles"`
-	Language    []*string                               `json:"Language"`
-	Filename    []*string                               `json:"Filename"`
+	Language    string                                  `json:"Language"`
+	Filename    string                                  `json:"Filename"`
 	Tags        []string                                `json:"Tags"`
 	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
@@ -195,11 +196,30 @@ func updateLibrary() {
 		errlog.Printf("Listing [total=%v] [page=%v]\n", len(allGists), page)
 		page++
 	}
+
+	// Get starred gists
+	for {
+		gists, resp, err := client.Gists.ListStarred(ctx, opt)
+		check(err)
+		fmt.Println(gists)
+		fmt.Println(resp)
+		fmt.Println(err)
+		allGists = append(allGists, gists...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+
+		errlog.Printf("Fetching starred [total=%v] [page=%v]\n", len(allGists), page)
+		page++
+		fmt.Println(gists)
+	}
+
 	errlog.Printf("Listing complete [total=%v]\n", len(allGists))
 	s.Stop()
 
 	sort.Sort(gistSort(allGists))
-	allGists = allGists[0:20]
+	allGists = allGists[0:50]
 
 	/*
 		Parse Library
@@ -232,8 +252,8 @@ func updateLibrary() {
 		items := make(map[github.GistFilename]github.GistFile)
 		// Check if gist has already been loaded
 		// if not, download files.
-		filenames := []*string{}
-		languages := []*string{}
+		filenames := []string{}
+		languages := []string{}
 		if contains(existingGistIds, gistID) == false {
 			for k := range gist.Files {
 				var updated = gist.Files[k]
@@ -241,8 +261,8 @@ func updateLibrary() {
 				go fetchContent(url, ch)
 				updated.Content = <-ch
 				items[k] = updated
-				filenames = append(filenames, gist.Files[k].Filename)
-				languages = append(languages, gist.Files[k].Language)
+				filenames = append(filenames, *gist.Files[k].Filename)
+				languages = append(languages, *gist.Files[k].Language)
 			}
 		}
 
@@ -258,8 +278,8 @@ func updateLibrary() {
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
 			Files:       items,
-			Language:    languages,
-			Filename:    filenames,
+			Language:    strings.Join(languages, " "),
+			Filename:    strings.Join(filenames, " "),
 			NFiles:      len(items),
 			Tags:        tags,
 			Comments:    gist.GetComments(),

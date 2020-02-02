@@ -59,9 +59,40 @@ func ListTags() {
 	table.Render()
 }
 
+type LibSummary struct {
+	gists uint64
+	files int
+}
+
+func librarySummary() LibSummary {
+	dc, _ := DbIdx.DocCount()
+	q := query.NewMatchAllQuery()
+	sr := bleve.NewSearchRequest(q)
+	results, err := DbIdx.Search(sr)
+	if err != nil {
+		fmt.Println("No Results")
+	}
+	var nfiles int
+	for _, gist := range results.Hits {
+		nfiles += gist.Fields["NFiles"].(int)
+	}
+	return LibSummary{gists: dc, files: nfiles}
+}
+
+/*
+	Langauge
+*/
+// func languageSummary() {
+// 	q := query.NewMatchAllQuery()
+// 	sr = bleve.NewSearchRequest(q)
+// 	sr.Size = int(dc)
+// 	sr.SortBy([]string{"UpdatedAt"})
+// }
+
 // ls - the primary query interface
-func ls(searchTerm string, sortBy string, tag string) {
+func ls(searchTerm string, sortBy string, tag string, language string, status string) {
 	var qstring string
+
 	if searchTerm != "" {
 		qstring = fmt.Sprintf("%s", searchTerm)
 	}
@@ -70,61 +101,66 @@ func ls(searchTerm string, sortBy string, tag string) {
 		qstring = fmt.Sprintf("%s +Tags:%v", qstring, tag)
 	}
 
+	if language != "" {
+		qstring = fmt.Sprintf("%s +Language:%v", qstring, language)
+	}
+
+	if status == "public" {
+		qstring = fmt.Sprintf("%s +Public", qstring)
+	} else if status == "private" {
+		qstring = fmt.Sprintf("%s -Public", qstring)
+	} else if status != "all" {
+		ThrowError("--public must be 'all', 'public', or 'private'", 1)
+	}
+	fmt.Println(qstring)
 	var isQuery bool
 	var sr *bleve.SearchRequest
 	dc, _ := DbIdx.DocCount()
 	// dump when no query params present
-	if (searchTerm == "") && tag == "" {
+	if searchTerm == "" && tag == "" && language == "" && status == "all" {
 		q := query.NewMatchAllQuery()
 		sr = bleve.NewSearchRequest(q)
-		sr.Highlight = bleve.NewHighlight()
 		sr.Size = int(dc)
 		sr.SortBy([]string{"UpdatedAt"})
 		isQuery = false
 	} else {
-		errlog.Println(qstring)
 		q := query.NewQueryStringQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
-		sr.Size = 5
+		sr.Size = 50
 		isQuery = true
 	}
+
+	// isQuery := true
+	// q := query.NewBooleanQuery(nil, nil, nil)
+	// if language != "" {
+	// 	q.AddMust(query.NewQueryStringQuery(fmt.Sprintf("+Language:%s", language)))
+	// }
+	// sr := bleve.NewSearchRequest(q)
+	//query.NewConjunctionQuery
+
 	sr.Fields = []string{"*"}
 	results, err := DbIdx.Search(sr)
 	if err != nil {
 		fmt.Println("No Results")
 	}
-	tableData := make([][]string, len(results.Hits))
-	for idx, gist := range results.Hits {
-		tableData[idx] = []string{
-			fmt.Sprintf("%v", gist.Fields["IDX"]),
-			gist.Fields["Description"].(string),
-			fmt.Sprintf("%v", gist.Fields["Filename"]),
-			fmt.Sprintf("%v", gist.Fields["Language"]),
-			gist.Fields["Owner"].(string),
-			gist.Fields["UpdatedAt"].(string),
-		}
-		if isQuery {
-			tableData[idx] = append(tableData[idx], fmt.Sprintf("%1.3f", gist.Score))
-		}
-	}
+	resultTable(results, isQuery)
+}
 
-	// Terminal Window size
-	var xsize, _, _ = terminal.GetSize(0)
-	var header = []string{"ID", "Description", "Filename", "Language", "Author", "Updated"}
-	if isQuery {
-		header = append(header, "Score")
+// Perform fuzzy search
+func fuzzySearch(searchTerm string) {
+	var isQuery bool
+	var sr *bleve.SearchRequest
+	q := query.NewFuzzyQuery(searchTerm)
+	sr = bleve.NewSearchRequest(q)
+	sr.Size = 50
+	isQuery = true
+
+	sr.Fields = []string{"*"}
+	results, err := DbIdx.Search(sr)
+	if err != nil {
+		fmt.Println("No Results")
 	}
-	var colWidth int
-	colWidth = (xsize / len(header))
-	// Render results
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader(header)
-	table.SetColWidth(colWidth)
-	// Give Description 2x width
-	table.SetColMinWidth(2, colWidth*2)
-	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
-	table.AppendBulk(tableData)
-	table.Render()
+	resultTable(results, isQuery)
 }
 
 func highlight(out io.Writer, filename string, content string, formatter string, style string) {
@@ -163,6 +199,7 @@ func lookupGist(gistIdx int) *search.DocumentMatch {
 
 func outputGist(gistIdx int) {
 	gist := lookupGist(gistIdx)
+	fmt.Println(gist.Fields)
 	// Parse bleve index which flattens results
 	keys := reflect.ValueOf(gist.Fields).MapKeys()
 	strkeys := make([]string, len(keys))
