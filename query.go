@@ -14,6 +14,7 @@ import (
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
+	. "github.com/logrusorgru/aurora"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -73,7 +74,7 @@ func ls(searchTerm string, sortBy string, tag string) {
 	var sr *bleve.SearchRequest
 	dc, _ := DbIdx.DocCount()
 	// dump when no query params present
-	if searchTerm == "" && tag == "" {
+	if (searchTerm == "") && tag == "" {
 		q := query.NewMatchAllQuery()
 		sr = bleve.NewSearchRequest(q)
 		sr.Highlight = bleve.NewHighlight()
@@ -82,12 +83,11 @@ func ls(searchTerm string, sortBy string, tag string) {
 		isQuery = false
 	} else {
 		errlog.Println(qstring)
-		q := query.NewFuzzyQuery(qstring)
+		q := query.NewQueryStringQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
 		sr.Size = 5
 		isQuery = true
 	}
-
 	sr.Fields = []string{"*"}
 	results, err := DbIdx.Search(sr)
 	if err != nil {
@@ -98,6 +98,8 @@ func ls(searchTerm string, sortBy string, tag string) {
 		tableData[idx] = []string{
 			fmt.Sprintf("%v", gist.Fields["IDX"]),
 			gist.Fields["Description"].(string),
+			fmt.Sprintf("%v", gist.Fields["Filename"]),
+			fmt.Sprintf("%v", gist.Fields["Language"]),
 			gist.Fields["Owner"].(string),
 			gist.Fields["UpdatedAt"].(string),
 		}
@@ -108,7 +110,10 @@ func ls(searchTerm string, sortBy string, tag string) {
 
 	// Terminal Window size
 	var xsize, _, _ = terminal.GetSize(0)
-	var header = []string{"ID", "Description", "Author", "Updated", "Score"}
+	var header = []string{"ID", "Description", "Filename", "Language", "Author", "Updated"}
+	if isQuery {
+		header = append(header, "Score")
+	}
 	var colWidth int
 	colWidth = (xsize / len(header))
 	// Render results
@@ -116,7 +121,7 @@ func ls(searchTerm string, sortBy string, tag string) {
 	table.SetHeader(header)
 	table.SetColWidth(colWidth)
 	// Give Description 2x width
-	table.SetColMinWidth(1, colWidth*2)
+	table.SetColMinWidth(2, colWidth*2)
 	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
 	table.AppendBulk(tableData)
 	table.Render()
@@ -147,7 +152,6 @@ func highlight(out io.Writer, filename string, content string, formatter string,
 
 func lookupGist(gistIdx int) *search.DocumentMatch {
 	q := query.NewQueryStringQuery(fmt.Sprintf("IDX:%v", gistIdx))
-	fmt.Println(gistIdx)
 	sr := bleve.NewSearchRequest(q)
 	sr.Fields = []string{"*"}
 	searchResults, err := DbIdx.Search(sr)
@@ -166,22 +170,30 @@ func outputGist(gistIdx int) {
 		strkeys[i] = keys[i].String()
 	}
 	var fsplit []string
-	fileset := make([]map[string]string, gist.Fields["NFiles"].(int))
+	var fileset = map[string]map[string]string{}
 	for idx := range strkeys {
 		fsplit = strings.Split(strkeys[idx], ".")
 		if fsplit[0] == "Files" {
 			field := fsplit[len(fsplit)-1]
 			filename := strings.Join(fsplit[1:len(fsplit)-1], ".")
 			value := gist.Fields[strkeys[idx]]
-			fmt.Printf("%s: %s = %v\n", filename, field, value)
-			//fileset[field] = filename
+			if fileset[filename] == nil {
+				fileset[filename] = map[string]string{}
+			}
+			fileset[filename][field] = fmt.Sprintf("%v", value)
 		}
 	}
-	fmt.Println(fileset)
 
-	//fmt.Println(gist.Fields["Files"])
-	//fmt.Println(fileSet)
-	//for idx, file := range gist.Fields["Files"] {
-	//	highlight(snippet_ql_file, filename, content, "html", "colorful")
-	//}
+	for _, file := range fileset {
+		var xsize, _, _ = terminal.GetSize(0)
+		var line = strings.Repeat("-", xsize-len(file["filename"])-50)
+		if outputPipe() {
+			fmt.Print(file["content"])
+		} else {
+			errlog.Printf("%s%s%s", Green(Bold(file["filename"])), line, file["language"])
+			highlight(os.Stdout, file["filename"], file["content"], "terminal16m", "fruity")
+			fmt.Fprintf(os.Stderr, "\n\n")
+		}
+	}
+
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -20,8 +19,7 @@ func main() {
 	// and cannot be searched.
 	var queryReserve = []string{"login", "update", "tag", "tags", "-h", "--help", "help", "ls"}
 	var searchTerm string
-	fmt.Println(queryReserve)
-	//client := github.NewClient(nil)
+
 	app := cli.NewApp()
 
 	app.Name = "gg"

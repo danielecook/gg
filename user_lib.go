@@ -11,6 +11,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -35,6 +36,20 @@ type configuration struct {
 	LastUpdate string `json:"last_update"`
 }
 
+type gistSort []*github.Gist
+
+func (e gistSort) Len() int {
+	return len(e)
+}
+
+func (e gistSort) Less(i, j int) bool {
+	return e[i].UpdatedAt.Before(e[j].GetUpdatedAt())
+}
+
+func (e gistSort) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
 // Snippet - Used to store gist data
 type Snippet struct {
 	// The ID is actually the github Node ID which is unique to the given commit
@@ -46,6 +61,8 @@ type Snippet struct {
 	Public      bool                                    `json:"Public"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
 	NFiles      int                                     `json:"NFiles"`
+	Language    []*string                               `json:"Language"`
+	Filename    []*string                               `json:"Filename"`
 	Tags        []string                                `json:"Tags"`
 	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
@@ -158,6 +175,7 @@ func updateLibrary() {
 		List User Gists
 	*/
 	var allGists []*github.Gist
+
 	page := 1
 
 	opt := &github.GistListOptions{
@@ -180,7 +198,8 @@ func updateLibrary() {
 	errlog.Printf("Listing complete [total=%v]\n", len(allGists))
 	s.Stop()
 
-	//allGists = allGists[0:50]
+	sort.Sort(gistSort(allGists))
+	allGists = allGists[0:20]
 
 	/*
 		Parse Library
@@ -213,7 +232,8 @@ func updateLibrary() {
 		items := make(map[github.GistFilename]github.GistFile)
 		// Check if gist has already been loaded
 		// if not, download files.
-
+		filenames := []*string{}
+		languages := []*string{}
 		if contains(existingGistIds, gistID) == false {
 			for k := range gist.Files {
 				var updated = gist.Files[k]
@@ -221,6 +241,8 @@ func updateLibrary() {
 				go fetchContent(url, ch)
 				updated.Content = <-ch
 				items[k] = updated
+				filenames = append(filenames, gist.Files[k].Filename)
+				languages = append(languages, gist.Files[k].Language)
 			}
 		}
 
@@ -236,6 +258,8 @@ func updateLibrary() {
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
 			Files:       items,
+			Language:    languages,
+			Filename:    filenames,
 			NFiles:      len(items),
 			Tags:        tags,
 			Comments:    gist.GetComments(),

@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+	. "github.com/logrusorgru/aurora"
+	"os"
+)
+
 func check(e error) {
 	if e != nil {
 		panic(e)
@@ -39,4 +45,20 @@ func insert(slice []string, index int, value string) []string {
 	copy(slice[index+1:], slice[index:])
 	slice[index] = value
 	return slice
+}
+
+func filenameHeader(filename string) string {
+	/*
+	   Prints filename header
+	*/
+	header := filename + "--------------------------------------------------------------------------"
+	return fmt.Sprintf("----%-25v\n", Blue(Bold(header[:60])))
+}
+
+func outputPipe() bool {
+	fi, _ := os.Stdout.Stat()
+	if (fi.Mode() & os.ModeCharDevice) == 0 {
+		return true
+	}
+	return false
 }
