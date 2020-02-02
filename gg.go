@@ -17,7 +17,7 @@ func main() {
 
 	// These strings are reserved for commands
 	// and cannot be searched.
-	var queryReserve = []string{"login", "update", "tag", "tags", "-h", "--help", "help"}
+	var queryReserve = []string{"login", "update", "tag", "tags", "-h", "--help", "help", "ls"}
 	var searchTerm string
 	fmt.Println(queryReserve)
 	//client := github.NewClient(nil)
@@ -146,8 +146,9 @@ func main() {
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
 					ListTags()
+				} else {
+					ls("", "", c.Args().Get(0))
 				}
-				ls("", "", c.Args().Get(0))
 				return nil
 			},
 		},
@@ -157,12 +158,13 @@ func main() {
 		Run search operation if keyword not used
 	*/
 	var args []string
-	if len(os.Args) == 1 || contains(queryReserve, os.Args[1]) == false {
-		// Running ./gg and ./gg ls are equivelent
-		for i := 1; i < len(os.Args); i++ {
-			searchTerm += " " + os.Args[i]
-		}
-		searchTerm = strings.Trim(searchTerm, " ")
+	var comm string
+	if len(os.Args) > 1 {
+		comm = os.Args[1]
+	} else {
+		comm = ""
+	}
+	if contains(queryReserve, comm) == false {
 		args = insert(os.Args, 1, "ls")
 	} else {
 		args = os.Args

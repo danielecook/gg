@@ -55,7 +55,6 @@ func ListTags() {
 // ls - the primary query interface
 func ls(searchTerm string, sortBy string, tag string) {
 	var qstring string
-
 	if searchTerm != "" {
 		qstring = fmt.Sprintf("%s", searchTerm)
 	}
@@ -71,18 +70,19 @@ func ls(searchTerm string, sortBy string, tag string) {
 	if searchTerm == "" && tag == "" {
 		q := query.NewMatchAllQuery()
 		sr = bleve.NewSearchRequest(q)
+		sr.Highlight = bleve.NewHighlight()
 		sr.Size = int(dc)
 		sr.SortBy([]string{"UpdatedAt"})
 		isQuery = false
 	} else {
-		q := query.NewQueryStringQuery(qstring)
+		errlog.Println(qstring)
+		q := query.NewFuzzyQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
 		sr.Size = 5
 		isQuery = true
 	}
 
 	sr.Fields = []string{"*"}
-	//sr.SortBy([]string{"UpdatedAt"})
 	results, err := DbIdx.Search(sr)
 	if err != nil {
 		fmt.Println("No Results")
@@ -114,4 +114,8 @@ func ls(searchTerm string, sortBy string, tag string) {
 	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
 	table.AppendBulk(tableData)
 	table.Render()
+}
+
+func outputGist() {
+
 }
