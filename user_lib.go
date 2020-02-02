@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -62,8 +61,8 @@ type Snippet struct {
 	Public      bool                                    `json:"Public"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
 	NFiles      int                                     `json:"NFiles"`
-	Language    string                                  `json:"Language"`
-	Filename    string                                  `json:"Filename"`
+	Language    []string                                `json:"Language"`
+	Filename    []string                                `json:"Filename"`
 	Tags        []string                                `json:"Tags"`
 	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
@@ -278,8 +277,8 @@ func updateLibrary() {
 			Description: gist.GetDescription(),
 			Public:      gist.GetPublic(),
 			Files:       items,
-			Language:    strings.Join(languages, " "),
-			Filename:    strings.Join(filenames, " "),
+			Language:    languages,
+			Filename:    filenames,
 			NFiles:      len(items),
 			Tags:        tags,
 			Comments:    gist.GetComments(),

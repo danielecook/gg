@@ -5,18 +5,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"sort"
-	"strings"
 
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/quick"
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
-	. "github.com/logrusorgru/aurora"
 	"github.com/olekukonko/tablewriter"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 /*
@@ -126,6 +122,7 @@ func ls(searchTerm string, sortBy string, tag string, language string, status st
 	} else {
 		q := query.NewQueryStringQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
+		//sr.Highlight = bleve.NewHighlightWithStyle("ansi")
 		sr.Size = 50
 		isQuery = true
 	}
@@ -195,42 +192,4 @@ func lookupGist(gistIdx int) *search.DocumentMatch {
 		panic(err)
 	}
 	return searchResults.Hits[0]
-}
-
-func outputGist(gistIdx int) {
-	gist := lookupGist(gistIdx)
-	fmt.Println(gist.Fields)
-	// Parse bleve index which flattens results
-	keys := reflect.ValueOf(gist.Fields).MapKeys()
-	strkeys := make([]string, len(keys))
-	for i := 0; i < len(keys); i++ {
-		strkeys[i] = keys[i].String()
-	}
-	var fsplit []string
-	var fileset = map[string]map[string]string{}
-	for idx := range strkeys {
-		fsplit = strings.Split(strkeys[idx], ".")
-		if fsplit[0] == "Files" {
-			field := fsplit[len(fsplit)-1]
-			filename := strings.Join(fsplit[1:len(fsplit)-1], ".")
-			value := gist.Fields[strkeys[idx]]
-			if fileset[filename] == nil {
-				fileset[filename] = map[string]string{}
-			}
-			fileset[filename][field] = fmt.Sprintf("%v", value)
-		}
-	}
-
-	for _, file := range fileset {
-		var xsize, _, _ = terminal.GetSize(0)
-		var line = strings.Repeat("-", xsize-len(file["filename"])-50)
-		if outputPipe() {
-			fmt.Print(file["content"])
-		} else {
-			errlog.Printf("%s%s%s", Green(Bold(file["filename"])), line, file["language"])
-			highlight(os.Stdout, file["filename"], file["content"], "terminal16m", "fruity")
-			fmt.Fprintf(os.Stderr, "\n\n")
-		}
-	}
-
 }
