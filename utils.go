@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	. "github.com/logrusorgru/aurora"
 	"os"
+
+	. "github.com/logrusorgru/aurora"
 )
 
 func check(e error) {
@@ -61,4 +62,12 @@ func outputPipe() bool {
 		return true
 	}
 	return false
+}
+
+func yesNo(s bool) string {
+	if s {
+		return "yes"
+	} else {
+		return "no"
+	}
 }

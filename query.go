@@ -86,7 +86,7 @@ func librarySummary() LibSummary {
 // }
 
 // ls - the primary query interface
-func ls(searchTerm string, sortBy string, tag string, language string, status string) {
+func ls(searchTerm string, sortBy string, tag string, language string, starred bool, status string) {
 	var qstring string
 
 	if searchTerm != "" {
@@ -101,14 +101,14 @@ func ls(searchTerm string, sortBy string, tag string, language string, status st
 		qstring = fmt.Sprintf("%s +Language:%v", qstring, language)
 	}
 
-	if status == "public" {
-		qstring = fmt.Sprintf("%s +Public", qstring)
-	} else if status == "private" {
-		qstring = fmt.Sprintf("%s -Public", qstring)
-	} else if status != "all" {
-		ThrowError("--public must be 'all', 'public', or 'private'", 1)
-	}
-	fmt.Println(qstring)
+	// if status == "public" {
+	// 	qstring = fmt.Sprintf("%s +Public", qstring)
+	// } else if status == "private" {
+	// 	qstring = fmt.Sprintf("%s -Public", qstring)
+	// } else if status != "all" {
+	// 	ThrowError("--public must be 'all', 'public', or 'private'", 1)
+	// }
+
 	var isQuery bool
 	var sr *bleve.SearchRequest
 	dc, _ := DbIdx.DocCount()
@@ -127,20 +127,13 @@ func ls(searchTerm string, sortBy string, tag string, language string, status st
 		isQuery = true
 	}
 
-	// isQuery := true
-	// q := query.NewBooleanQuery(nil, nil, nil)
-	// if language != "" {
-	// 	q.AddMust(query.NewQueryStringQuery(fmt.Sprintf("+Language:%s", language)))
-	// }
-	// sr := bleve.NewSearchRequest(q)
-	//query.NewConjunctionQuery
-
 	sr.Fields = []string{"*"}
 	results, err := DbIdx.Search(sr)
+
 	if err != nil {
 		fmt.Println("No Results")
 	}
-	resultTable(results, isQuery)
+	resultTable(results.Hits, isQuery)
 }
 
 // Perform fuzzy search
@@ -149,7 +142,7 @@ func fuzzySearch(searchTerm string) {
 	var sr *bleve.SearchRequest
 	q := query.NewFuzzyQuery(searchTerm)
 	sr = bleve.NewSearchRequest(q)
-	sr.Size = 50
+	sr.Size = 10
 	isQuery = true
 
 	sr.Fields = []string{"*"}
@@ -157,7 +150,7 @@ func fuzzySearch(searchTerm string) {
 	if err != nil {
 		fmt.Println("No Results")
 	}
-	resultTable(results, isQuery)
+	resultTable(results.Hits, isQuery)
 }
 
 func highlight(out io.Writer, filename string, content string, formatter string, style string) {

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/blevesearch/bleve/search"
 	. "github.com/logrusorgru/aurora"
 	"github.com/pkg/browser"
@@ -18,7 +20,7 @@ func main() {
 
 	// These strings are reserved for commands
 	// and cannot be searched.
-	var queryReserve = []string{"new", "open", "search", "login", "update", "tag", "tags", "-h", "--help", "help", "ls"}
+	var queryReserve = []string{"new", "r", "open", "edit", "search", "login", "update", "tag", "tags", "-h", "--help", "help", "ls"}
 	var searchTerm string
 
 	app := cli.NewApp()
@@ -39,6 +41,7 @@ func main() {
 		{
 			Name:                   "new",
 			Usage:                  "Create a new gist",
+			Category:               "Gists",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
 				browser.OpenURL("https://gist.github.com")
@@ -47,7 +50,8 @@ func main() {
 		},
 		{
 			Name:                   "open",
-			Usage:                  "Open web browser for gist",
+			Usage:                  "Open gist in browser",
+			Category:               "Gists",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
 				var gist *search.DocumentMatch
@@ -57,6 +61,15 @@ func main() {
 					ThrowError("Invalid Index", 1)
 				}
 				browser.OpenURL(gist.Fields["URL"].(string))
+				return nil
+			},
+		},
+		{
+			Name:                   "edit",
+			Usage:                  "Edit a gist using $EDITOR",
+			Category:               "Gists",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
 				return nil
 			},
 		},
@@ -102,10 +115,31 @@ func main() {
 			},
 		},
 		{
-			Name:                   "ls",
-			Usage:                  "List and filter",
+			Name:                   "r",
+			Usage:                  "Retrieve a single gist",
 			UsageText:              "\n\t\tgg ls [options] [query]\n\n\t\tquery - Searches most fields",
-			Category:               "Snippets",
+			Category:               "Query",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
+				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
+					if c.Bool("clipboard") {
+						clipboard.WriteAll(fetchGistContent(v))
+					}
+				}
+				return nil
+			},
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "c, clipboard",
+					Usage: "Copy to clipboard",
+				},
+			},
+		},
+		{
+			Name:                   "ls",
+			Usage:                  "List, Search and filter",
+			UsageText:              "\n\t\tgg ls [options] [query]\n\n\t\tquery - Searches most fields",
+			Category:               "Query",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
 				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
@@ -116,7 +150,7 @@ func main() {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", c.String("tag"), c.String("language"), c.String("status"))
+					ls(searchTerm, "", c.String("tag"), c.String("language"), c.Bool("starred"), c.String("status"))
 				}
 				return nil
 			},
@@ -164,6 +198,7 @@ func main() {
 					searchTerm += " " + c.Args().Get(i)
 				}
 				searchTerm = strings.Trim(searchTerm, " ")
+				fmt.Println(searchTerm)
 				fuzzySearch(searchTerm)
 				return nil
 			},
@@ -185,7 +220,11 @@ func main() {
 				if c.Args().First() == "" {
 					ListTags()
 				} else {
-					ls("", "", c.Args().Get(0), "", "")
+					for i := 1; i <= c.NArg(); i++ {
+						searchTerm += " " + c.Args().Get(i)
+					}
+					searchTerm = strings.Trim(searchTerm, " ")
+					ls(searchTerm, "", c.Args().Get(0), "", false, "")
 				}
 				return nil
 			},

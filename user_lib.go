@@ -63,6 +63,7 @@ type Snippet struct {
 	NFiles      int                                     `json:"NFiles"`
 	Language    []string                                `json:"Language"`
 	Filename    []string                                `json:"Filename"`
+	Starred     bool                                    `json:"Starred"`
 	Tags        []string                                `json:"Tags"`
 	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
@@ -175,6 +176,7 @@ func updateLibrary() {
 		List User Gists
 	*/
 	var allGists []*github.Gist
+	var starredGists []*github.Gist
 
 	page := 1
 
@@ -196,14 +198,18 @@ func updateLibrary() {
 		page++
 	}
 
+	since, _ := time.Parse("Mon Jan 2 15:04:05 -0700 MST 2006", "Mon Jan 2 15:04:05 -0700 MST 1987")
+	opt = &github.GistListOptions{
+		ListOptions: github.ListOptions{Page: 0, PerPage: 100},
+		Since:       since,
+	}
+
+	errlog.Println(Bold("Fetching Stars"))
 	// Get starred gists
 	for {
 		gists, resp, err := client.Gists.ListStarred(ctx, opt)
 		check(err)
-		fmt.Println(gists)
-		fmt.Println(resp)
-		fmt.Println(err)
-		allGists = append(allGists, gists...)
+		starredGists = append(starredGists, gists...)
 		if resp.NextPage == 0 {
 			break
 		}
@@ -211,7 +217,11 @@ func updateLibrary() {
 
 		errlog.Printf("Fetching starred [total=%v] [page=%v]\n", len(allGists), page)
 		page++
-		fmt.Println(gists)
+	}
+
+	starIDs := make([]string, len(starredGists))
+	for idx, gist := range starredGists {
+		starIDs[idx] = fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
 	}
 
 	errlog.Printf("Listing complete [total=%v]\n", len(allGists))
@@ -279,6 +289,7 @@ func updateLibrary() {
 			Files:       items,
 			Language:    languages,
 			Filename:    filenames,
+			Starred:     contains(starIDs, gistID),
 			NFiles:      len(items),
 			Tags:        tags,
 			Comments:    gist.GetComments(),
