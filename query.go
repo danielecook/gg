@@ -89,18 +89,20 @@ func librarySummary() LibSummary {
 func ls(searchTerm string, sortBy string, tag string, language string, starred bool, status string) {
 	var qstring string
 
+	// Consider reworking filtering here to be done manually...
 	if searchTerm != "" {
 		qstring = fmt.Sprintf("%s", searchTerm)
 	}
 
 	if tag != "" {
-		qstring = fmt.Sprintf("%s +Tags:%v", qstring, tag)
+		qstring = fmt.Sprintf("+Tags:%v %s", tag, qstring)
 	}
 
 	if language != "" {
-		qstring = fmt.Sprintf("%s +Language:%v", qstring, language)
+		qstring = fmt.Sprintf("+Language:%v %s", language, qstring)
 	}
 
+	fmt.Printf(qstring)
 	// if status == "public" {
 	// 	qstring = fmt.Sprintf("%s +Public", qstring)
 	// } else if status == "private" {
