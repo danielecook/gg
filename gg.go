@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -44,8 +45,61 @@ func main() {
 			Category:               "Gists",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				browser.OpenURL("https://gist.github.com")
+				var fileSet map[string]string
+				fileSet = make(map[string]string)
+				if c.Bool("clipboard") {
+					/* New from clipboard */
+					fmt.Println("clip")
+					content, err := clipboard.ReadAll()
+					if err != nil {
+						ThrowError("Error reading from clipboard", 1)
+					}
+					fileSet[c.String("filename")] = content
+				} else if inputPipe() {
+					/* New from stdin */
+					fmt.Println("input")
+					bytes, err := ioutil.ReadAll(os.Stdin)
+					if err != nil {
+						ThrowError("Error reading from stdin", 1)
+					}
+					content := string(bytes)
+					fileSet[c.String("filename")] = content
+				} else {
+					/* New from list of files */
+					if c.NArg() > 0 {
+						if c.String("filename") != "" {
+							ThrowError("Cannot use --filename with files", 1)
+						}
+						for _, fname := range c.Args() {
+							bytes, err := ioutil.ReadFile(fname)
+							if err != nil {
+								ThrowError(fmt.Sprintf("Error reading %s", fname), 1)
+							}
+							fileSet[fname] = string(bytes)
+						}
+					}
+				}
+				if len(fileSet) == 0 {
+					ThrowError("No content supplied (use --clipboard, stdin, or files)", 1)
+				}
+				createGist(fileSet, c.String("description"), c.Bool("private") == false)
 				return nil
+			},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "d, description",
+					Usage: "Set the description for gist",
+				},
+				cli.StringFlag{
+					Name:  "f, filename",
+					Usage: "Set the filename with --clipboard or stdin",
+				},
+				cli.BoolFlag{
+					Name: "p, private",
+				},
+				cli.BoolFlag{
+					Name: "c, clipboard",
+				},
 			},
 		},
 		{
@@ -231,22 +285,7 @@ func main() {
 		},
 	}
 
-	/*
-		Run search operation if keyword not used
-	*/
-	var args []string
-	var comm string
-	if len(os.Args) > 1 {
-		comm = os.Args[1]
-	} else {
-		comm = ""
-	}
-	if contains(queryReserve, comm) == false {
-		args = insert(os.Args, 1, "ls")
-	} else {
-		args = os.Args
-	}
-	err := app.Run(args)
+	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

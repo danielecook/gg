@@ -164,6 +164,33 @@ func authenticate() *github.Client {
 	return github.NewClient(tc)
 }
 
+func createGist(fileSet map[string]string, description string, public bool) {
+	client := authenticate()
+
+	var gist github.Gist
+	files := map[github.GistFilename]github.GistFile{}
+
+	for fname, item := range fileSet {
+		fset := new(string)
+		*fset = fname
+		files[github.GistFilename(fname)] = github.GistFile{
+			Content:  &item,
+			Filename: fset,
+		}
+	}
+
+	gist.Description = &description
+	gist.Files = files
+	gist.Public = &public
+
+	result, _, err := client.Gists.Create(ctx, &gist)
+	if err != nil {
+		ThrowError(fmt.Sprintf("Error: %s", err), 1)
+	}
+	// Print URL on success
+	errlog.Println(Bold(Green(*result.HTMLURL)))
+}
+
 func updateLibrary() {
 	client := authenticate()
 

@@ -64,10 +64,11 @@ func outputPipe() bool {
 	return false
 }
 
-func yesNo(s bool) string {
-	if s {
-		return "yes"
-	} else {
-		return "no"
+/* True if data is coming in from stdin */
+func inputPipe() bool {
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		return true
 	}
+	return false
 }
