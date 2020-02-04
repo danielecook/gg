@@ -40,5 +40,12 @@ gg new --clipboard --description "A new gist" --filename "analysis.sh"
 
 # Remove Gists
 
-`gg rm <id1> <id2> <id3>... # Deletes a list of gists`
+Use `gg rm` to delete gists. For example:
+
+`gg rm 12`
+
+You can also list multiple gists to remove:
+
+`gg rm 12 134 47`
+
 
