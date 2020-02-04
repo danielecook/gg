@@ -106,6 +106,17 @@ func fetchContent(url string, ch chan *string) {
 	ch <- &result
 }
 
+// Generate list of IDs for gists
+func idMap(gistSet []*github.Gist) map[string]*github.Gist {
+	m := make(map[string]*github.Gist)
+	var key string
+	for _, gist := range gistSet {
+		key = fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
+		m[key] = gist
+	}
+	return m
+}
+
 func getLibraryDirectory() string {
 	usr, err := user.Current()
 	if err != nil {
@@ -231,12 +242,21 @@ func updateLibrary() {
 		Since:       since,
 	}
 
-	errlog.Println(Bold("Fetching Stars"))
+	gistMap := idMap(allGists)
 	// Get starred gists
 	for {
 		gists, resp, err := client.Gists.ListStarred(ctx, opt)
 		check(err)
 		starredGists = append(starredGists, gists...)
+
+		// Append starred gists not present in the library
+		for _, gist := range starredGists {
+			key := fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
+			if gistMap[key] == nil {
+				allGists = append(allGists, gist)
+			}
+		}
+
 		if resp.NextPage == 0 {
 			break
 		}
@@ -297,8 +317,12 @@ func updateLibrary() {
 				go fetchContent(url, ch)
 				updated.Content = <-ch
 				items[k] = updated
-				filenames = append(filenames, *gist.Files[k].Filename)
-				languages = append(languages, *gist.Files[k].Language)
+				if gist.Files[k].Filename != nil {
+					filenames = append(filenames, *gist.Files[k].Filename)
+				}
+				if gist.Files[k].Language != nil {
+					languages = append(languages, *gist.Files[k].Language)
+				}
 			}
 		}
 
