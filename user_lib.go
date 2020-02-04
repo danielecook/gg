@@ -32,8 +32,7 @@ var libPath = fmt.Sprintf("%s/library.json", getLibraryDirectory())
 var libTagsPath = fmt.Sprintf("%s/tags.json", getLibraryDirectory())
 
 type configuration struct {
-	AuthToken  string `json:"token"`
-	LastUpdate string `json:"last_update"`
+	AuthToken string `json:"token"`
 }
 
 type gistSort []*github.Gist
@@ -150,7 +149,7 @@ func initializeLibrary(AuthToken string, rebuild bool) bool {
 func getConfig() configuration {
 	// Check that config exists
 	if _, err := os.Stat(libConfig); os.IsNotExist(err) {
-		errMsg := "No config found. Run 'gg login'"
+		errMsg := "No config found. Run 'gg sync --token <github token>'"
 		ThrowError(errMsg, 2)
 	}
 	jsonFile, err := os.Open(libConfig)
@@ -275,7 +274,7 @@ func updateLibrary() {
 	s.Stop()
 
 	sort.Sort(gistSort(allGists))
-	allGists = allGists[0:50]
+	//allGists = allGists[0:50]
 
 	/*
 		Parse Library
@@ -299,7 +298,7 @@ func updateLibrary() {
 	// Initialize progress bar
 	bar := progressbar.New(len(allGists))
 	// Not sure if this concurrent method is working in parallel or not...
-	ch := make(chan *string, 5)
+	ch := make(chan *string, 50)
 	for idx, gist := range allGists {
 		// A unique id is constructed from the ID and date last updated.
 		gistID := fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
@@ -376,19 +375,9 @@ func updateLibrary() {
 	/*
 		Store JSON
 	*/
-	// Tags
-	tagCounts := counter(LibraryTags)
-	var Tags []*Tag
-	for key, val := range tagCounts {
-		Tags = append(Tags, &Tag{Name: key, Count: val})
-	}
-	out, err := json.Marshal(Tags)
-	check(err)
-	err = ioutil.WriteFile(libTagsPath, out, 0644)
-	check(err)
 
 	// Library
-	out, err = json.Marshal(Library)
+	out, err := json.Marshal(Library)
 	check(err)
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)

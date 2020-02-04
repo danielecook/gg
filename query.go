@@ -1,11 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"strconv"
 
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/quick"
@@ -14,46 +13,6 @@ import (
 	"github.com/blevesearch/bleve/search/query"
 	"github.com/olekukonko/tablewriter"
 )
-
-/*
-	Tags
-*/
-
-func fetchTags() map[string]int {
-	var tagSet []Tag
-	tagCounts := make(map[string]int)
-	tagsFile, err := os.Open(libTagsPath)
-	if err != nil {
-		ThrowError("No Tags Summary File Found; Update library", 1)
-	}
-	defer tagsFile.Close()
-	jsonParser := json.NewDecoder(tagsFile)
-	jsonParser.Decode(&tagSet)
-	for _, tag := range tagSet {
-		tagCounts[tag.Name] = tag.Count
-	}
-	return tagCounts
-}
-
-// ListTags - all tags in library
-func ListTags() {
-	tags := fetchTags()
-	keys := make([]string, 0, len(tags))
-	for tag := range tags {
-		keys = append(keys, tag)
-	}
-	sort.Slice(keys, func(i, j int) bool { return tags[keys[i]] > tags[keys[j]] })
-
-	data := make([][]string, len(tags))
-	for idx, key := range keys {
-		data[idx] = []string{key, fmt.Sprintf("%x", tags[key])}
-	}
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Tag", "Count"})
-	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
-	table.AppendBulk(data)
-	table.Render()
-}
 
 type LibSummary struct {
 	gists uint64
@@ -76,14 +35,32 @@ func librarySummary() LibSummary {
 }
 
 /*
-	Langauge
+	Summarize a field
 */
-// func languageSummary() {
-// 	q := query.NewMatchAllQuery()
-// 	sr = bleve.NewSearchRequest(q)
-// 	sr.Size = int(dc)
-// 	sr.SortBy([]string{"UpdatedAt"})
-// }
+func fieldSummary(field string) {
+	// Calculates frequencies for a given field
+	facet := bleve.NewFacetRequest(field, 100000)
+	query := query.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(query)
+	searchRequest.AddFacet("count", facet)
+	searchResults, err := DbIdx.Search(searchRequest)
+	if err != nil {
+		panic(err)
+	}
+
+	// term with highest occurrences in field name
+	data := make([][]string, searchResults.Size())
+	for idx, val := range searchResults.Facets["count"].Terms {
+		data[idx] = []string{val.Term, strconv.Itoa(val.Count)}
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{field, "Count"})
+	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
+	table.AppendBulk(data)
+	table.Render()
+
+}
 
 // ls - the primary query interface
 func ls(searchTerm string, sortBy string, tag string, language string, starred bool, status string) {
@@ -102,7 +79,7 @@ func ls(searchTerm string, sortBy string, tag string, language string, starred b
 		qstring = fmt.Sprintf("+Language:%v %s", language, qstring)
 	}
 
-	fmt.Printf(qstring)
+	fmt.Println(qstring)
 	// if status == "public" {
 	// 	qstring = fmt.Sprintf("%s +Public", qstring)
 	// } else if status == "private" {
