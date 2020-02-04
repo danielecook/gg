@@ -19,15 +19,12 @@ var errlog = log.New(os.Stderr, "", 0)
 
 func main() {
 
-	// These strings are reserved for commands
-	// and cannot be searched.
-	var queryReserve = []string{"new", "r", "open", "edit", "search", "login", "update", "tag", "tags", "-h", "--help", "help", "ls"}
 	var searchTerm string
 
 	app := cli.NewApp()
 
 	app.Name = "gg"
-	app.Usage = "A tool for Github Gists\n\n\t gg <search term> - quick search\n\n\t gg <ID> - retrieve gist"
+	app.Usage = "A tool for Github Gists\n\n\t gg <ID> - retrieve gist"
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
 
@@ -103,7 +100,90 @@ func main() {
 			},
 		},
 		{
+			Name:                   "edit",
+			Usage:                  "Edit a gist using $EDITOR",
+			Category:               "Gists",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
+				return nil
+			},
+		},
+		{
+			Name:      "sync",
+			Usage:     "Login and fetch your gist library",
+			UsageText: "\n\t\tgg sync [Authentication Token]\n",
+			Category:  "Library",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "token",
+					Usage:  "Required on first login; This is stored in .gg/config.json",
+					EnvVar: "TOKEN",
+				},
+				cli.BoolFlag{
+					Name:  "r, rebuild",
+					Usage: "Clear and rebuild library",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				if c.String("token") != "" || c.Bool("rebuild") {
+					/* gg login */
+					initializeLibrary(c.String("token"), c.Bool("rebuild"))
+				}
+				updateLibrary()
+				return nil
+			},
+		},
+		{
 			Name:                   "open",
+			Aliases:                []string{"o"},
+			Usage:                  "Copy or output a single gist",
+			UsageText:              "\n\t\tgg o [options] [gists...]\n\n\t\t",
+			Category:               "Query",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
+				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
+					if c.Bool("clipboard") {
+						clipboard.WriteAll(fetchGistContent(v))
+						errlog.Println(Bold(Green("Copied to clipboard")))
+					} else {
+						for g := range c.Args() {
+							if v, err := strconv.Atoi(c.Args().Get(g)); err == nil {
+								outputGist(v)
+							} else {
+								errlog.Println(Bold(Red(fmt.Sprintf("%v is an invalid ID", c.Args().Get(g)))))
+							}
+						}
+					}
+				}
+				return nil
+			},
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "c, clipboard",
+					Usage: "Copy to clipboard. Only works for first gist.",
+				},
+			},
+		},
+		{
+			Name:                   "rm",
+			Usage:                  "Delete gists",
+			UsageText:              "\n\t\tgg rm [options] [gists...]\n\n\t\t",
+			Category:               "Query",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
+				for g := range c.Args() {
+					if v, err := strconv.Atoi(c.Args().Get(g)); err == nil {
+						rmGist(v)
+					} else {
+						errlog.Println(Bold(Red(fmt.Sprintf("%v is an invalid ID", c.Args().Get(g)))))
+					}
+				}
+				return nil
+			},
+		},
+		{
+			Name:                   "web",
+			Aliases:                []string{"w"},
 			Usage:                  "Open gist in browser",
 			Category:               "Gists",
 			UseShortOptionHandling: true,
@@ -116,77 +196,6 @@ func main() {
 				}
 				browser.OpenURL(gist.Fields["URL"].(string))
 				return nil
-			},
-		},
-		{
-			Name:                   "edit",
-			Usage:                  "Edit a gist using $EDITOR",
-			Category:               "Gists",
-			UseShortOptionHandling: true,
-			Action: func(c *cli.Context) error {
-				return nil
-			},
-		},
-		{
-			Name:      "login",
-			Usage:     "Login and Setup your gist library",
-			UsageText: "\n\t\tgg login [Authentication Token KEY]\n",
-			Category:  "Library",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:   "authentication_token",
-					EnvVar: "TOKEN",
-				},
-				cli.BoolFlag{
-					Name:  "r, rebuild",
-					Usage: "Rebuild library",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				if c.String("authentication_token") == "" {
-					/* gg login */
-					errMsg := Bold(Red("\n\tError - Please supply your Authentication Token\n"))
-					return cli.NewExitError(errMsg, 2)
-				}
-				if len(c.String("authentication_token")) != 40 {
-					/* gg login <wrong_length> */
-					return cli.NewExitError(Bold(Red("\n\tThe API Key should be 40 characters\n\n")), 32)
-				}
-				/* Store Token */
-				initializeLibrary(c.String("authentication_token"), c.Bool("rebuild"))
-				updateLibrary()
-				return nil
-			},
-		},
-		{
-			Name:      "update",
-			Usage:     "Update gist library",
-			UsageText: "\n\t\tgg update\n",
-			Category:  "Library",
-			Action: func(c *cli.Context) error {
-				updateLibrary()
-				return nil
-			},
-		},
-		{
-			Name:                   "r",
-			Usage:                  "Retrieve a single gist",
-			UsageText:              "\n\t\tgg ls [options] [query]\n\n\t\tquery - Searches most fields",
-			Category:               "Query",
-			UseShortOptionHandling: true,
-			Action: func(c *cli.Context) error {
-				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
-					if c.Bool("clipboard") {
-						clipboard.WriteAll(fetchGistContent(v))
-					}
-				}
-				return nil
-			},
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  "c, clipboard",
-					Usage: "Copy to clipboard",
-				},
 			},
 		},
 		{
@@ -204,18 +213,18 @@ func main() {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", c.String("tag"), c.String("language"), c.Bool("starred"), c.String("status"))
+					ls(searchTerm, "", c.String("tag"), c.String("language"), c.Bool("starred"), c.String("status"), c.Int("limit"))
 				}
 				return nil
 			},
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "t, tag",
+					Name:  "tag",
 					Value: "",
 					Usage: "Filter by tag (omit the # prefix)",
 				},
 				cli.StringFlag{
-					Name:  "l, language",
+					Name:  "language",
 					Value: "",
 					Usage: "Filter by language (case-insensitive)",
 				},
@@ -233,12 +242,13 @@ func main() {
 					Usage: "Filter by (all|public|private)",
 				},
 				cli.BoolFlag{
-					Name:  "w, syntax",
-					Usage: "Output with syntax highlighting",
-				},
-				cli.BoolFlag{
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
+				},
+				cli.IntFlag{
+					Name:  "l, limit",
+					Value: 10,
+					Usage: "Max number of results to display",
 				},
 			},
 		},
@@ -259,6 +269,7 @@ func main() {
 		},
 		{
 			Name:      "tag",
+			Aliases:   []string{"tags"},
 			Usage:     "List or query tag",
 			UsageText: "\n\t\tgg tag [tag name] [query]\n",
 			Category:  "Query",
@@ -268,16 +279,21 @@ func main() {
 					Value: "",
 					Usage: "Filter by tag (omit the # prefix)",
 				},
+				cli.IntFlag{
+					Name:  "limit",
+					Value: 50,
+					Usage: "Number of results",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
-					ListTags()
+					fieldSummary("Tags")
 				} else {
 					for i := 1; i <= c.NArg(); i++ {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", c.Args().Get(0), "", false, "")
+					ls(searchTerm, "", c.Args().Get(0), "", false, "", c.Int("limit"))
 				}
 				return nil
 			},
@@ -285,13 +301,18 @@ func main() {
 		{
 			Name:      "language",
 			Usage:     "List or query language",
-			UsageText: "\n\t\tgg language [tag name] [query]\n",
+			UsageText: "\n\t\tgg language [language name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "query",
 					Value: "",
 					Usage: "Filter by language",
+				},
+				cli.IntFlag{
+					Name:  "l, limit",
+					Value: 10,
+					Usage: "Max number of results to display",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -302,7 +323,37 @@ func main() {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", "", c.Args().Get(0), false, "")
+					ls(searchTerm, "", "", c.Args().Get(0), false, "", c.Int("limit"))
+				}
+				return nil
+			},
+		},
+		{
+			Name:      "owner",
+			Usage:     "List or query owner",
+			UsageText: "\n\t\tgg language [owner] [query]\n",
+			Category:  "Query",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "query",
+					Value: "",
+					Usage: "Filter by owner",
+				},
+				cli.IntFlag{
+					Name:  "l, limit",
+					Value: 10,
+					Usage: "Max number of results to display",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				if c.Args().First() == "" {
+					fieldSummary("Owner")
+				} else {
+					for i := 1; i <= c.NArg(); i++ {
+						searchTerm += " " + c.Args().Get(i)
+					}
+					searchTerm = strings.Trim(searchTerm, " ")
+					ls(searchTerm, "", "", c.Args().Get(0), false, "", c.Int("limit"))
 				}
 				return nil
 			},

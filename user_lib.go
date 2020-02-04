@@ -54,6 +54,7 @@ type Snippet struct {
 	// The ID is actually the github Node ID which is unique to the given commit
 	// IDX is A convenience numeric ID for listing individual snippets
 	ID          string                                  `json:"ID"`
+	GistID      string                                  `json:"GistID"`
 	IDX         int                                     `json:"IDX"`
 	Owner       string                                  `json:"Owner"`
 	Description string                                  `json:"Description"`
@@ -201,6 +202,19 @@ func createGist(fileSet map[string]string, description string, public bool) {
 	errlog.Println(Bold(Green(*result.HTMLURL)))
 }
 
+func rmGist(gistID int) {
+	client := authenticate()
+
+	gist := lookupGist(gistID)
+	_, err := client.Gists.Delete(ctx, gist.Fields["GistID"].(string))
+	if err != nil {
+		ThrowError(fmt.Sprintf("Error: %s", err), 1)
+	}
+	// Print URL on success
+	msg := fmt.Sprintf("Removed %s", gist.Fields["GistID"].(string))
+	errlog.Println(Bold(Green(msg)))
+}
+
 func updateLibrary() {
 	client := authenticate()
 
@@ -301,15 +315,15 @@ func updateLibrary() {
 	ch := make(chan *string, 50)
 	for idx, gist := range allGists {
 		// A unique id is constructed from the ID and date last updated.
-		gistID := fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
-		currentGistIds[idx] = gistID
+		gistRecID := fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
+		currentGistIds[idx] = gistRecID
 
 		items := make(map[github.GistFilename]github.GistFile)
 		// Check if gist has already been loaded
 		// if not, download files.
 		filenames := []string{}
 		languages := []string{}
-		if contains(existingGistIds, gistID) == false {
+		if contains(existingGistIds, gistRecID) == false {
 			for k := range gist.Files {
 				var updated = gist.Files[k]
 				var url = string(*gist.Files[k].RawURL)
@@ -331,7 +345,8 @@ func updateLibrary() {
 			LibraryTags = append(LibraryTags, t)
 		}
 		var f = Snippet{
-			ID:          gistID,
+			ID:          gistRecID,
+			GistID:      gist.GetID(),
 			IDX:         idx,
 			Owner:       string(gist.GetOwner().GetLogin()),
 			Description: gist.GetDescription(),
@@ -339,7 +354,7 @@ func updateLibrary() {
 			Files:       items,
 			Language:    languages,
 			Filename:    filenames,
-			Starred:     contains(starIDs, gistID),
+			Starred:     contains(starIDs, gistRecID),
 			NFiles:      len(items),
 			Tags:        tags,
 			Comments:    gist.GetComments(),

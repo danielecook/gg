@@ -63,7 +63,7 @@ func fieldSummary(field string) {
 }
 
 // ls - the primary query interface
-func ls(searchTerm string, sortBy string, tag string, language string, starred bool, status string) {
+func ls(searchTerm string, sortBy string, tag string, language string, starred bool, status string, limit int) {
 	var qstring string
 
 	// Consider reworking filtering here to be done manually...
@@ -90,19 +90,19 @@ func ls(searchTerm string, sortBy string, tag string, language string, starred b
 
 	var isQuery bool
 	var sr *bleve.SearchRequest
-	dc, _ := DbIdx.DocCount()
+	//dc, _ := DbIdx.DocCount()
 	// dump when no query params present
 	if searchTerm == "" && tag == "" && language == "" && status == "all" {
 		q := query.NewMatchAllQuery()
 		sr = bleve.NewSearchRequest(q)
-		sr.Size = int(dc)
-		sr.SortBy([]string{"UpdatedAt"})
+		sr.Size = limit
+		sr.SortBy([]string{"-UpdatedAt"})
 		isQuery = false
 	} else {
 		q := query.NewQueryStringQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
 		//sr.Highlight = bleve.NewHighlightWithStyle("ansi")
-		sr.Size = 50
+		sr.Size = limit
 		isQuery = true
 	}
 
