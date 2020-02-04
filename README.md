@@ -38,4 +38,7 @@ gg new --clipboard --description "A new gist" --filename "analysis.sh"
 
 # Retrieve a specific gist
 
+# Remove Gists
+
+`gg rm <id1> <id2> <id3>... # Deletes a list of gists`
 
