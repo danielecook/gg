@@ -259,7 +259,6 @@ func main() {
 		},
 		{
 			Name:      "tag",
-			Aliases:   []string{"tags"},
 			Usage:     "List or query tag",
 			UsageText: "\n\t\tgg tag [tag name] [query]\n",
 			Category:  "Query",
@@ -283,10 +282,46 @@ func main() {
 				return nil
 			},
 		},
+		{
+			Name:      "language",
+			Usage:     "List or query language",
+			UsageText: "\n\t\tgg language [tag name] [query]\n",
+			Category:  "Query",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "query",
+					Value: "",
+					Usage: "Filter by language",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				if c.Args().First() == "" {
+					fieldSummary("Language")
+				} else {
+					for i := 1; i <= c.NArg(); i++ {
+						searchTerm += " " + c.Args().Get(i)
+					}
+					searchTerm = strings.Trim(searchTerm, " ")
+					ls(searchTerm, "", "", c.Args().Get(0), false, "")
+				}
+				return nil
+			},
+		},
 	}
 
-	err := app.Run(os.Args)
+	var a string
+	if len(os.Args) > 1 {
+		a = os.Args[1]
+	}
+	args := os.Args
+	if _, err := strconv.Atoi(a); err == nil {
+		args = insert(args, 1, "o")
+	} else {
+		args = os.Args
+	}
+	err := app.Run(args)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }
