@@ -1,10 +1,14 @@
 # gg
 
-A command-line utility for accessing gists. Also an Alfred Workflow
+A command-line utility for accessing gists. It downloads all of your gists and the gists you have starred and stores them locally for quick access.
 
 # Getting Started
 
-Run `gg login <authtoken>`.
+Run `gg sync --token <authentication_token>`.
+
+# Query Gists
+
+`gg ls` will list your entire gist library in a table. When doing so you will see that every gist is assigned an index. This index can be used to perform operations such as outputting, opening, editing, and removing gists.
 
 # Creating new gists
 
@@ -31,11 +35,6 @@ You can create a new gist from your clipboard using:
 ```bash
 gg new --clipboard --description "A new gist" --filename "analysis.sh"
 ```
-
-# Listing Gists
-
-`gg ls` will list your entire gist library in a table.
-
 # Retrieve Gists
 
 ```bash
