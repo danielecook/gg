@@ -14,25 +14,20 @@ import (
 
 // Generate a result table
 func resultTable(results []*search.DocumentMatch, isQuery bool) {
-	var star string
 	tableData := make([][]string, len(results))
 	for idx, gist := range results {
 
 		updatedAt := strings.Split(gist.Fields["UpdatedAt"].(string), "T")[0]
 
-		if gist.Fields["Starred"].(bool) {
-			star = "⭐"
-		} else {
-			star = ""
-		}
 		tableData[idx] = []string{
 			fmt.Sprintf("%v", gist.Fields["IDX"]),
-			star,
 			gist.Fields["Description"].(string),
 			fmt.Sprintf("%v", gist.Fields["Filename"]),
 			fmt.Sprintf("%v", gist.Fields["Language"]),
 			gist.Fields["Owner"].(string),
 			updatedAt,
+			ifelse(gist.Fields["Starred"].(string) == "T", "⭐", ""),
+			ifelse(gist.Fields["Public"].(string) == "F", "🔒", ""),
 		}
 		if isQuery {
 			tableData[idx] = append(tableData[idx], fmt.Sprintf("%1.3f", gist.Score))
@@ -41,7 +36,7 @@ func resultTable(results []*search.DocumentMatch, isQuery bool) {
 
 	// Terminal Window size
 	var xsize, _, _ = terminal.GetSize(0)
-	var header = []string{"ID", "⭐", "Description", "Filename", "Language", "Author", "Updated"}
+	var header = []string{"ID", "Description", "Filename", "Language", "Author", "Updated", "⭐", "🔒"}
 	if isQuery {
 		header = append(header, "Score")
 	}
