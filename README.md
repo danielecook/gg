@@ -36,7 +36,21 @@ gg new --clipboard --description "A new gist" --filename "analysis.sh"
 
 `gg ls` will list your entire gist library in a table.
 
-# Retrieve a specific gist
+# Retrieve Gists
+
+```bash
+gg open 5 # Outputs a single gist
+gg o 5 # 'o' is a shortcut for open.
+
+# To be even quicker, gg will open a gist when the first argument is an integer.
+gg 5 # equivelent to `gg o 5` or `gg open 5`
+
+# Output multiple gists
+gg 5 8 22
+
+# You can pipe the contents to be evaluated; They will not be syntax-highlighted
+gg 5 | sh
+```
 
 # Remove Gists
 
