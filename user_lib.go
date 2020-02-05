@@ -49,6 +49,15 @@ func (e gistSort) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
+func TF(s bool) string {
+	// Convert true and false to TF b/c of
+	// bleve search index limitations
+	if s {
+		return "T"
+	}
+	return "F"
+}
+
 // Snippet - Used to store gist data
 type Snippet struct {
 	// The ID is actually the github Node ID which is unique to the given commit
@@ -58,12 +67,12 @@ type Snippet struct {
 	IDX         int                                     `json:"IDX"`
 	Owner       string                                  `json:"Owner"`
 	Description string                                  `json:"Description"`
-	Public      bool                                    `json:"Public"`
+	Public      string                                  `json:"Public"`
+	Starred     string                                  `json:"Starred"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
 	NFiles      int                                     `json:"NFiles"`
 	Language    []string                                `json:"Language"`
 	Filename    []string                                `json:"Filename"`
-	Starred     bool                                    `json:"Starred"`
 	Tags        []string                                `json:"Tags"`
 	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
@@ -350,11 +359,11 @@ func updateLibrary() {
 			IDX:         idx,
 			Owner:       string(gist.GetOwner().GetLogin()),
 			Description: gist.GetDescription(),
-			Public:      gist.GetPublic(),
+			Public:      TF(gist.GetPublic()),
 			Files:       items,
 			Language:    languages,
 			Filename:    filenames,
-			Starred:     contains(starIDs, gistRecID),
+			Starred:     TF(contains(starIDs, gistRecID)),
 			NFiles:      len(items),
 			Tags:        tags,
 			Comments:    gist.GetComments(),

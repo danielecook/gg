@@ -219,7 +219,7 @@ func main() {
 			},
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "tag",
+					Name:  "t, tag",
 					Value: "",
 					Usage: "Filter by tag (omit the # prefix)",
 				},

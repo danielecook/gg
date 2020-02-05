@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/quick"
@@ -79,20 +80,24 @@ func ls(searchTerm string, sortBy string, tag string, language string, starred b
 		qstring = fmt.Sprintf("+Language:%v %s", language, qstring)
 	}
 
-	fmt.Println(qstring)
-	// if status == "public" {
-	// 	qstring = fmt.Sprintf("%s +Public", qstring)
-	// } else if status == "private" {
-	// 	qstring = fmt.Sprintf("%s -Public", qstring)
-	// } else if status != "all" {
-	// 	ThrowError("--public must be 'all', 'public', or 'private'", 1)
-	// }
+	if starred {
+		qstring = fmt.Sprintf("+Starred:T %s", qstring)
+	}
 
+	if status == "public" {
+		qstring = fmt.Sprintf("+Public:T %s", qstring)
+	} else if status == "private" {
+		qstring = fmt.Sprintf("+Public:F %s", qstring)
+	} else if status != "all" {
+		ThrowError("--public must be 'all', 'public', or 'private'", 1)
+	}
+
+	qstring = strings.Trim(qstring, " ")
 	var isQuery bool
 	var sr *bleve.SearchRequest
 	//dc, _ := DbIdx.DocCount()
 	// dump when no query params present
-	if searchTerm == "" && tag == "" && language == "" && status == "all" {
+	if searchTerm == "" && qstring == "" && status == "all" {
 		q := query.NewMatchAllQuery()
 		sr = bleve.NewSearchRequest(q)
 		sr.Size = limit

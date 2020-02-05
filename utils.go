@@ -72,3 +72,11 @@ func inputPipe() bool {
 	}
 	return false
 }
+
+func ifelse(s bool, t string, f string) string {
+	if s {
+		return t
+	} else {
+		return f
+	}
+}
