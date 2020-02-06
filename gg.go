@@ -12,7 +12,7 @@ import (
 	"github.com/blevesearch/bleve/search"
 	. "github.com/logrusorgru/aurora"
 	"github.com/pkg/browser"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var errlog = log.New(os.Stderr, "", 0)
@@ -28,14 +28,14 @@ func main() {
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
 
-	app.Authors = []cli.Author{
+	app.Authors = []*cli.Author{
 		{
 			Name:  "Daniel Cook",
 			Email: "danielecook@gmail.com",
 		},
 	}
 
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		{
 			Name:                   "new",
 			Usage:                  "Create a new gist",
@@ -53,7 +53,6 @@ func main() {
 					fileSet[c.String("filename")] = content
 				} else if inputPipe() {
 					/* New from stdin */
-					fmt.Println("input")
 					bytes, err := ioutil.ReadAll(os.Stdin)
 					if err != nil {
 						ThrowError("Error reading from stdin", 1)
@@ -66,7 +65,7 @@ func main() {
 						if c.String("filename") != "" {
 							ThrowError("Cannot use --filename with files", 1)
 						}
-						for _, fname := range c.Args() {
+						for _, fname := range c.Args().Slice() {
 							bytes, err := ioutil.ReadFile(fname)
 							if err != nil {
 								ThrowError(fmt.Sprintf("Error reading %s", fname), 1)
@@ -82,18 +81,18 @@ func main() {
 				return nil
 			},
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "d, description",
 					Usage: "Set the description for gist",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "f, filename",
 					Usage: "Set the filename with --clipboard or stdin",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name: "p, private",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name: "c, clipboard",
 				},
 			},
@@ -113,12 +112,12 @@ func main() {
 			UsageText: "\n\t\tgg sync [Authentication Token]\n",
 			Category:  "Library",
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:   "token",
-					Usage:  "Required on first login; This is stored in .gg/config.json",
-					EnvVar: "TOKEN",
+				&cli.StringFlag{
+					Name:    "token",
+					Usage:   "Required on first login; This is stored in .gg/config.json",
+					EnvVars: []string{"TOKEN"},
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "r, rebuild",
 					Usage: "Clear and rebuild library",
 				},
@@ -145,7 +144,7 @@ func main() {
 						clipboard.WriteAll(fetchGistContent(v))
 						errlog.Println(Bold(Green("Copied to clipboard")))
 					} else {
-						for g := range c.Args() {
+						for g := range c.Args().Slice() {
 							if v, err := strconv.Atoi(c.Args().Get(g)); err == nil {
 								outputGist(v)
 							} else {
@@ -157,7 +156,7 @@ func main() {
 				return nil
 			},
 			Flags: []cli.Flag{
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "c, clipboard",
 					Usage: "Copy to clipboard. Only works for first gist.",
 				},
@@ -170,7 +169,7 @@ func main() {
 			Category:               "Query",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				for g := range c.Args() {
+				for g := range c.Args().Slice() {
 					if v, err := strconv.Atoi(c.Args().Get(g)); err == nil {
 						rmGist(v)
 					} else {
@@ -217,37 +216,38 @@ func main() {
 				return nil
 			},
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "t, tag",
 					Value: "",
 					Usage: "Filter by tag (omit the # prefix)",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "language",
 					Value: "",
 					Usage: "Filter by language (case-insensitive)",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "s, starred",
 					Usage: "Filter by starred snippets",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "f, forked",
 					Usage: "Filter by forked snippets",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "status",
 					Value: "all",
 					Usage: "Filter by (all|public|private)",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
 				},
-				cli.IntFlag{
-					Name:  "l, limit",
-					Value: 10,
-					Usage: "Max number of results to display",
+				&cli.IntFlag{
+					Name:        "limit",
+					Value:       int(10),
+					DefaultText: "10",
+					Usage:       "Max number of results to display",
 				},
 			},
 		},
@@ -261,7 +261,6 @@ func main() {
 					searchTerm += " " + c.Args().Get(i)
 				}
 				searchTerm = strings.Trim(searchTerm, " ")
-				fmt.Println(searchTerm)
 				fuzzySearch(searchTerm)
 				return nil
 			},
@@ -273,15 +272,20 @@ func main() {
 			UsageText: "\n\t\tgg tag [tag name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "query",
 					Value: "",
 					Usage: "Filter by tag (omit the # prefix)",
 				},
-				cli.IntFlag{
+				&cli.IntFlag{
 					Name:  "limit",
 					Value: 50,
 					Usage: "Number of results",
+				},
+				&cli.StringFlag{
+					Name:  "status",
+					Value: "all",
+					Usage: "Filter by (all|public|private)",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -292,7 +296,7 @@ func main() {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", c.Args().Get(0), "", false, "", c.Int("limit"))
+					ls(searchTerm, "", c.Args().Get(0), "", false, c.String("status"), c.Int("limit"))
 				}
 				return nil
 			},
@@ -303,15 +307,20 @@ func main() {
 			UsageText: "\n\t\tgg language [language name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "query",
 					Value: "",
 					Usage: "Filter by language",
 				},
-				cli.IntFlag{
+				&cli.IntFlag{
 					Name:  "l, limit",
 					Value: 10,
 					Usage: "Max number of results to display",
+				},
+				&cli.StringFlag{
+					Name:  "status",
+					Value: "all",
+					Usage: "Filter by (all|public|private)",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -322,7 +331,7 @@ func main() {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", "", c.Args().Get(0), false, "", c.Int("limit"))
+					ls(searchTerm, "", "", c.Args().Get(0), false, c.String("status"), c.Int("limit"))
 				}
 				return nil
 			},
@@ -333,15 +342,20 @@ func main() {
 			UsageText: "\n\t\tgg language [owner] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "query",
 					Value: "",
 					Usage: "Filter by owner",
 				},
-				cli.IntFlag{
+				&cli.IntFlag{
 					Name:  "l, limit",
 					Value: 10,
 					Usage: "Max number of results to display",
+				},
+				&cli.StringFlag{
+					Name:  "status",
+					Value: "all",
+					Usage: "Filter by (all|public|private)",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -352,7 +366,7 @@ func main() {
 						searchTerm += " " + c.Args().Get(i)
 					}
 					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", "", c.Args().Get(0), false, "", c.Int("limit"))
+					ls(searchTerm, "", "", c.Args().Get(0), false, c.String("status"), c.Int("limit"))
 				}
 				return nil
 			},

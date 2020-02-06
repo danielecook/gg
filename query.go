@@ -67,7 +67,6 @@ func fieldSummary(field string) {
 // ls - the primary query interface
 func ls(searchTerm string, sortBy string, tag string, language string, starred bool, status string, limit int) {
 	var qstring string
-
 	// Consider reworking filtering here to be done manually...
 	if searchTerm != "" {
 		qstring = fmt.Sprintf("%s", searchTerm)

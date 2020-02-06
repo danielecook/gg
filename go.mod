@@ -21,6 +21,7 @@ require (
 	github.com/schollz/progressbar/v2 v2.15.0
 	github.com/steveyen/gtreap v0.0.0-20150807155958-0abe01ef9be2 // indirect
 	github.com/urfave/cli v1.22.1
+	github.com/urfave/cli/v2 v2.1.1
 	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/tools v0.0.0-20200131000851-b4207ef49307 // indirect
