@@ -203,7 +203,8 @@ func createGist(fileSet map[string]string, description string, public bool) {
 		ThrowError(fmt.Sprintf("Error: %s", err), 1)
 	}
 	// Add record to database
-	gistDbRecord(resultGist, nextIdx(), []string{})
+	gistDbRec := gistDbRecord(resultGist, nextIdx(), []string{})
+	dbIdx.Index(gistDbRec.ID, gistDbRec)
 	// Print URL on success
 	errlog.Println(Bold(Green(*resultGist.HTMLURL)))
 }
@@ -343,17 +344,12 @@ func updateLibrary() {
 		starIDs[idx] = getGistRecID(gist)
 	}
 
-	allGists = allGists[0:50]
-
 	errlog.Printf("Listing complete [total=%v]\n", len(allGists))
 	s.Stop()
 
 	sort.Sort(gistSort(allGists))
-	//allGists = allGists[0:50]
 
-	/*
-		Parse Library
-	*/
+	// Parse library
 	var Library []*Snippet
 	Library = make([]*Snippet, len(allGists))
 
