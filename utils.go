@@ -76,7 +76,6 @@ func inputPipe() bool {
 func ifelse(s bool, t string, f string) string {
 	if s {
 		return t
-	} else {
-		return f
 	}
+	return f
 }

@@ -49,8 +49,8 @@ func (e gistSort) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
-func TF(s bool) string {
-	// Convert true and false to TF b/c of
+func trueFalse(s bool) string {
+	// Convert true and false to 'T' and 'F' b/c of
 	// bleve search index limitations
 	if s {
 		return "T"
@@ -79,11 +79,6 @@ type Snippet struct {
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
 	Snippet     string                                  `json:"Snippet"`
 	URL         string                                  `json:"URL"`
-}
-
-type Tag struct {
-	Name  string `json:"name"`
-	Count int    `json:"count"`
 }
 
 // Extract tags from the description
@@ -120,7 +115,7 @@ func idMap(gistSet []*github.Gist) map[string]*github.Gist {
 	m := make(map[string]*github.Gist)
 	var key string
 	for _, gist := range gistSet {
-		key = fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
+		key = getGistRecID(gist)
 		m[key] = gist
 	}
 	return m
@@ -142,7 +137,7 @@ func initializeLibrary(AuthToken string, rebuild bool) bool {
 	if rebuild {
 		deleteLibrary()
 		// Reload index
-		DbIdx = *openDb()
+		dbIdx = *openDb()
 	}
 	var config = configuration{
 		AuthToken: string(AuthToken),
@@ -160,12 +155,12 @@ func getConfig() configuration {
 	// Check that config exists
 	if _, err := os.Stat(libConfig); os.IsNotExist(err) {
 		errMsg := "No config found. Run 'gg sync --token <github token>'"
-		ThrowError(errMsg, 2)
+		ThrowError(errMsg, 1)
 	}
 	jsonFile, err := os.Open(libConfig)
 	if err != nil {
 		errMsg := "JSON Parse Error. Run 'gg login'"
-		ThrowError(errMsg, 2)
+		ThrowError(errMsg, 1)
 	}
 	defer jsonFile.Close()
 
@@ -203,12 +198,14 @@ func createGist(fileSet map[string]string, description string, public bool) {
 	gist.Files = files
 	gist.Public = &public
 
-	result, _, err := client.Gists.Create(ctx, &gist)
+	resultGist, _, err := client.Gists.Create(ctx, &gist)
 	if err != nil {
 		ThrowError(fmt.Sprintf("Error: %s", err), 1)
 	}
+	// Add record to database
+	gistDbRecord(resultGist, nextIdx(), []string{})
 	// Print URL on success
-	errlog.Println(Bold(Green(*result.HTMLURL)))
+	errlog.Println(Bold(Green(*resultGist.HTMLURL)))
 }
 
 func rmGist(gistID int) {
@@ -221,7 +218,60 @@ func rmGist(gistID int) {
 	}
 	// Print URL on success
 	msg := fmt.Sprintf("Removed %s", gist.Fields["GistID"].(string))
+
+	// Remove from search index
+	dbIdx.Delete(gist.ID)
 	errlog.Println(Bold(Green(msg)))
+}
+
+func getGistRecID(gist *github.Gist) string {
+	return fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
+}
+
+func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
+	gistRecID := getGistRecID(gist)
+	ch := make(chan *string, 50)
+	items := make(map[github.GistFilename]github.GistFile)
+	// Check if gist has already been loaded
+	// if not, download files.
+	filenames := []string{}
+	languages := []string{}
+	// Check whether document exists
+	if _, err := dbIdx.Document(gistRecID); err == nil {
+		for k := range gist.Files {
+			var updated = gist.Files[k]
+			var url = string(*gist.Files[k].RawURL)
+			go fetchContent(url, ch)
+			updated.Content = <-ch
+			items[k] = updated
+			if gist.Files[k].Filename != nil {
+				filenames = append(filenames, *gist.Files[k].Filename)
+			}
+			if gist.Files[k].Language != nil {
+				languages = append(languages, *gist.Files[k].Language)
+			}
+		}
+	}
+	tags := parseTags(gist.GetDescription())
+	var sn = Snippet{
+		ID:          getGistRecID(gist),
+		GistID:      gist.GetID(),
+		IDX:         idx,
+		Owner:       string(gist.GetOwner().GetLogin()),
+		Description: gist.GetDescription(),
+		Public:      trueFalse(gist.GetPublic()),
+		Files:       items,
+		Language:    languages,
+		Filename:    filenames,
+		Starred:     trueFalse(contains(starIDs, gistRecID)),
+		NFiles:      len(items),
+		Tags:        tags,
+		Comments:    gist.GetComments(),
+		CreatedAt:   gist.GetCreatedAt(),
+		UpdatedAt:   gist.GetUpdatedAt(),
+		URL:         gist.GetHTMLURL(),
+	}
+	return sn
 }
 
 func updateLibrary() {
@@ -290,8 +340,10 @@ func updateLibrary() {
 
 	starIDs := make([]string, len(starredGists))
 	for idx, gist := range starredGists {
-		starIDs[idx] = fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
+		starIDs[idx] = getGistRecID(gist)
 	}
+
+	allGists = allGists[0:50]
 
 	errlog.Printf("Listing complete [total=%v]\n", len(allGists))
 	s.Stop()
@@ -303,7 +355,6 @@ func updateLibrary() {
 		Parse Library
 	*/
 	var Library []*Snippet
-	var LibraryTags []string
 	Library = make([]*Snippet, len(allGists))
 
 	errlog.Println(Bold("Loading Gists"))
@@ -316,68 +367,20 @@ func updateLibrary() {
 		existingGistIds[idx] = gist.ID
 	}
 
-	currentGistIds := make([]string, len(allGists))
-
 	// Initialize progress bar
 	bar := progressbar.New(len(allGists))
+
+	currentGistIds := make([]string, len(allGists))
 	// Not sure if this concurrent method is working in parallel or not...
-	ch := make(chan *string, 50)
 	for idx, gist := range allGists {
-		// A unique id is constructed from the ID and date last updated.
-		gistRecID := fmt.Sprintf("%v::%v", gist.GetID(), gist.GetUpdatedAt())
-		currentGistIds[idx] = gistRecID
-
-		items := make(map[github.GistFilename]github.GistFile)
-		// Check if gist has already been loaded
-		// if not, download files.
-		filenames := []string{}
-		languages := []string{}
-		if contains(existingGistIds, gistRecID) == false {
-			for k := range gist.Files {
-				var updated = gist.Files[k]
-				var url = string(*gist.Files[k].RawURL)
-				go fetchContent(url, ch)
-				updated.Content = <-ch
-				items[k] = updated
-				if gist.Files[k].Filename != nil {
-					filenames = append(filenames, *gist.Files[k].Filename)
-				}
-				if gist.Files[k].Language != nil {
-					languages = append(languages, *gist.Files[k].Language)
-				}
-			}
-		}
-
-		bar.Add(1)
-		tags := parseTags(gist.GetDescription())
-		for _, t := range tags {
-			LibraryTags = append(LibraryTags, t)
-		}
-		var f = Snippet{
-			ID:          gistRecID,
-			GistID:      gist.GetID(),
-			IDX:         idx,
-			Owner:       string(gist.GetOwner().GetLogin()),
-			Description: gist.GetDescription(),
-			Public:      TF(gist.GetPublic()),
-			Files:       items,
-			Language:    languages,
-			Filename:    filenames,
-			Starred:     TF(contains(starIDs, gistRecID)),
-			NFiles:      len(items),
-			Tags:        tags,
-			Comments:    gist.GetComments(),
-			CreatedAt:   gist.GetCreatedAt(),
-			UpdatedAt:   gist.GetUpdatedAt(),
-			URL:         gist.GetHTMLURL(),
-		}
-
 		// Store gist in db
-		Library[idx] = &f
+		gistDbRec := gistDbRecord(gist, idx, starIDs)
+		Library[idx] = &gistDbRec
+		bar.Add(1)
 	}
 
 	errlog.Println(Bold("\nIndexing Gists"))
-	batch := DbIdx.NewBatch()
+	batch := dbIdx.NewBatch()
 
 	// Delete gist IDs that no longer exist
 	for _, existingID := range existingGistIds {
@@ -394,7 +397,7 @@ func updateLibrary() {
 	}
 
 	// Execute database updates
-	DbIdx.Batch(batch)
+	dbIdx.Batch(batch)
 
 	/*
 		Store JSON
@@ -406,7 +409,7 @@ func updateLibrary() {
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)
 
-	docCount, err := DbIdx.DocCount()
+	docCount, err := dbIdx.DocCount()
 	fmt.Println()
 	errlog.Println(Bold(Green(fmt.Sprintf("Loaded %v gists", docCount))))
 }

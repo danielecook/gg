@@ -46,7 +46,6 @@ func main() {
 				fileSet = make(map[string]string)
 				if c.Bool("clipboard") {
 					/* New from clipboard */
-					fmt.Println("clip")
 					content, err := clipboard.ReadAll()
 					if err != nil {
 						ThrowError("Error reading from clipboard", 1)

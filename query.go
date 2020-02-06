@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,16 +16,16 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-type LibSummary struct {
+type libSummary struct {
 	gists uint64
 	files int
 }
 
-func librarySummary() LibSummary {
-	dc, _ := DbIdx.DocCount()
+func librarySummary() libSummary {
+	dc, _ := dbIdx.DocCount()
 	q := query.NewMatchAllQuery()
 	sr := bleve.NewSearchRequest(q)
-	results, err := DbIdx.Search(sr)
+	results, err := dbIdx.Search(sr)
 	if err != nil {
 		fmt.Println("No Results")
 	}
@@ -32,7 +33,7 @@ func librarySummary() LibSummary {
 	for _, gist := range results.Hits {
 		nfiles += gist.Fields["NFiles"].(int)
 	}
-	return LibSummary{gists: dc, files: nfiles}
+	return libSummary{gists: dc, files: nfiles}
 }
 
 /*
@@ -44,7 +45,7 @@ func fieldSummary(field string) {
 	query := query.NewMatchAllQuery()
 	searchRequest := bleve.NewSearchRequest(query)
 	searchRequest.AddFacet("count", facet)
-	searchResults, err := DbIdx.Search(searchRequest)
+	searchResults, err := dbIdx.Search(searchRequest)
 	if err != nil {
 		panic(err)
 	}
@@ -95,7 +96,7 @@ func ls(searchTerm string, sortBy string, tag string, language string, starred b
 	qstring = strings.Trim(qstring, " ")
 	var isQuery bool
 	var sr *bleve.SearchRequest
-	//dc, _ := DbIdx.DocCount()
+	//dc, _ := dbIdx.DocCount()
 	// dump when no query params present
 	if searchTerm == "" && qstring == "" && status == "all" {
 		q := query.NewMatchAllQuery()
@@ -112,7 +113,7 @@ func ls(searchTerm string, sortBy string, tag string, language string, starred b
 	}
 
 	sr.Fields = []string{"*"}
-	results, err := DbIdx.Search(sr)
+	results, err := dbIdx.Search(sr)
 
 	if err != nil {
 		fmt.Println("No Results")
@@ -130,7 +131,7 @@ func fuzzySearch(searchTerm string) {
 	isQuery = true
 
 	sr.Fields = []string{"*"}
-	results, err := DbIdx.Search(sr)
+	results, err := dbIdx.Search(sr)
 	if err != nil {
 		fmt.Println("No Results")
 	}
@@ -164,9 +165,28 @@ func lookupGist(gistIdx int) *search.DocumentMatch {
 	q := query.NewQueryStringQuery(fmt.Sprintf("IDX:%v", gistIdx))
 	sr := bleve.NewSearchRequest(q)
 	sr.Fields = []string{"*"}
-	searchResults, err := DbIdx.Search(sr)
+	searchResults, err := dbIdx.Search(sr)
 	if err != nil {
 		panic(err)
 	}
 	return searchResults.Hits[0]
+}
+
+// Returns the next IDX to use
+func nextIdx() int {
+	dc, _ := dbIdx.DocCount()
+	q := query.NewMatchAllQuery()
+	sr := bleve.NewSearchRequest(q)
+	sr.Fields = []string{"IDX"}
+	sr.Size = int(dc)
+	results, err := dbIdx.Search(sr)
+	if err != nil {
+		ThrowError("Index error", 1)
+	}
+	gistIdxSet := make([]int, len(results.Hits))
+	for idx, gist := range results.Hits {
+		gistIdxSet[idx] = int(gist.Fields["IDX"].(float64))
+	}
+	sort.Ints(gistIdxSet)
+	return gistIdxSet[len(gistIdxSet)-1] + 1
 }

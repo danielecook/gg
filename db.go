@@ -9,7 +9,7 @@ import (
 )
 
 // global search index
-var DbIdx = *openDb()
+var dbIdx = *openDb()
 var libDb = fmt.Sprintf("%s/db", getLibraryDirectory())
 
 // openDb
@@ -18,11 +18,11 @@ var libDb = fmt.Sprintf("%s/db", getLibraryDirectory())
 func openDb() *bleve.Index {
 	if _, err := os.Stat(libDb); os.IsNotExist(err) {
 		mapping := bleve.NewIndexMapping()
-		DbIdx, err := bleve.New(libDb, mapping)
+		dbIdx, err := bleve.New(libDb, mapping)
 		if err != nil {
 			ThrowError("Error creating library", 1)
 		}
-		return &DbIdx
+		return &dbIdx
 	}
 	index, err := bleve.Open(libDb)
 	if err != nil {
@@ -33,7 +33,7 @@ func openDb() *bleve.Index {
 
 func queryGists(docIds []string) *bleve.SearchResult {
 	sr := bleve.NewSearchRequest(query.NewDocIDQuery(docIds))
-	results, err := DbIdx.Search(sr)
+	results, err := dbIdx.Search(sr)
 	if err != nil {
 		return nil
 	}
@@ -41,11 +41,11 @@ func queryGists(docIds []string) *bleve.SearchResult {
 }
 
 func dumpDb() *bleve.SearchResult {
-	dc, _ := DbIdx.DocCount()
+	dc, _ := dbIdx.DocCount()
 	sr := bleve.NewSearchRequest(query.NewMatchAllQuery())
 	sr.Fields = []string{"*"}
 	sr.Size = int(dc)
-	results, err := DbIdx.Search(sr) // bleve/index_impl, bleve/search/collector/topn.Collect
+	results, err := dbIdx.Search(sr) // bleve/index_impl, bleve/search/collector/topn.Collect
 	if err != nil {
 		return nil
 	}
