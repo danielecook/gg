@@ -377,7 +377,6 @@ func updateLibrary() {
 	for idx, gist := range existingGists.Hits {
 		existingGistIds[idx] = gist.ID
 	}
-
 	// Initialize progress bar
 	bar := progressbar.New(len(allGists))
 
@@ -386,6 +385,7 @@ func updateLibrary() {
 	for idx, gist := range allGists {
 		// Store gist in db
 		gistDbRec := gistDbRecord(gist, idx, starIDs)
+		currentGistIds[idx] = getGistRecID(gist)
 		Library[idx] = &gistDbRec
 		bar.Add(1)
 	}
