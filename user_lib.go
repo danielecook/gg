@@ -16,7 +16,6 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/google/go-github/github"
-	. "github.com/logrusorgru/aurora"
 	"github.com/schollz/progressbar/v2"
 	"golang.org/x/oauth2"
 )
@@ -33,6 +32,7 @@ var libTagsPath = fmt.Sprintf("%s/tags.json", getLibraryDirectory())
 
 type configuration struct {
 	AuthToken string `json:"token"`
+	Login     string `json:"login"`
 }
 
 type gistSort []*github.Gist
@@ -139,8 +139,16 @@ func initializeLibrary(AuthToken string, rebuild bool) bool {
 		// Reload index
 		dbIdx = *openDb()
 	}
+
+	client, _ := authenticate(AuthToken)
+	user, resp, err := client.Users.Get(ctx, "")
+	if err != nil {
+		ThrowError(fmt.Sprintf("Error authenticating: %s", resp), 1)
+	}
+
 	var config = configuration{
 		AuthToken: string(AuthToken),
+		Login:     string(user.GetLogin()),
 	}
 	_ = os.Mkdir(getLibraryDirectory(), 0755)
 	out, err := json.Marshal(config)
@@ -159,7 +167,7 @@ func getConfig() configuration {
 	}
 	jsonFile, err := os.Open(libConfig)
 	if err != nil {
-		errMsg := "JSON Parse Error. Run 'gg login'"
+		errMsg := "JSON Parse Error. Run 'gg sync --rebuild'"
 		ThrowError(errMsg, 1)
 	}
 	defer jsonFile.Close()
@@ -171,16 +179,22 @@ func getConfig() configuration {
 }
 
 // authenticate - Setup user authentication with github token
-func authenticate() *github.Client {
+func authenticate(authToken string) (*github.Client, string) {
+	config := getConfig()
+	if authToken == "" {
+		authToken = config.AuthToken
+	}
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: getConfig().AuthToken},
+		&oauth2.Token{AccessToken: authToken},
 	)
 	tc := oauth2.NewClient(ctx, ts)
-	return github.NewClient(tc)
+	client := github.NewClient(tc)
+	client.UserAgent = "github.com/danielecook/gg"
+	return client, config.Login
 }
 
 func createGist(fileSet map[string]string, description string, public bool) {
-	client := authenticate()
+	client, _ := authenticate("")
 
 	var gist github.Gist
 	files := map[github.GistFilename]github.GistFile{}
@@ -206,11 +220,11 @@ func createGist(fileSet map[string]string, description string, public bool) {
 	gistDbRec := gistDbRecord(resultGist, nextIdx(), []string{})
 	dbIdx.Index(gistDbRec.ID, gistDbRec)
 	// Print URL on success
-	errlog.Println(Bold(Green(*resultGist.HTMLURL)))
+	errlog.Println(*resultGist.HTMLURL)
 }
 
 func rmGist(gistID int) {
-	client := authenticate()
+	client, _ := authenticate("")
 
 	gist := lookupGist(gistID)
 	_, err := client.Gists.Delete(ctx, gist.Fields["GistID"].(string))
@@ -222,7 +236,7 @@ func rmGist(gistID int) {
 
 	// Remove from search index
 	dbIdx.Delete(gist.ID)
-	errlog.Println(Bold(Green(msg)))
+	successMsg(msg)
 }
 
 func getGistRecID(gist *github.Gist) string {
@@ -276,7 +290,7 @@ func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
 }
 
 func updateLibrary() {
-	client := authenticate()
+	client, username := authenticate("")
 
 	// Add a spinner
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Build our new spinner
@@ -352,8 +366,7 @@ func updateLibrary() {
 	// Parse library
 	var Library []*Snippet
 	Library = make([]*Snippet, len(allGists))
-
-	errlog.Println(Bold("Loading Gists"))
+	boldMsg(fmt.Sprintf("Loading Gists for %s", username))
 
 	// Dump previous DB to determine whether
 	// gists need to be updated.
@@ -375,7 +388,7 @@ func updateLibrary() {
 		bar.Add(1)
 	}
 
-	errlog.Println(Bold("\nIndexing Gists"))
+	boldMsg("\nIndexing Gists")
 	batch := dbIdx.NewBatch()
 
 	// Delete gist IDs that no longer exist
@@ -407,5 +420,5 @@ func updateLibrary() {
 
 	docCount, err := dbIdx.DocCount()
 	fmt.Println()
-	errlog.Println(Bold(Green(fmt.Sprintf("Loaded %v gists", docCount))))
+	successMsg(fmt.Sprintf("Loaded %v gists", docCount))
 }

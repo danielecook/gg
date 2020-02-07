@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/search"
-	. "github.com/logrusorgru/aurora"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -99,7 +98,7 @@ func outputGist(gistIdx int) {
 		if outputPipe() {
 			fmt.Print(file["content"])
 		} else {
-			errlog.Printf("%s%s%s%s", Green(Bold(file["filename"])), isPrivate, line, file["language"])
+			errlog.Printf("%s%s%s%s", greenText.Sprint(file["filename"]), isPrivate, line, file["language"])
 			highlight(os.Stdout, file["filename"], file["content"], "terminal16m", "fruity")
 			fmt.Fprintf(os.Stderr, "\n\n")
 		}

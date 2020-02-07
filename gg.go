@@ -10,14 +10,41 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/blevesearch/bleve/search"
-	. "github.com/logrusorgru/aurora"
+	"github.com/fatih/color"
 	"github.com/pkg/browser"
 	"github.com/urfave/cli/v2"
 )
 
 var errlog = log.New(os.Stderr, "", 0)
 
+var greenText = color.New(color.FgGreen).Add(color.Bold)
+var blueText = color.New(color.FgBlue).Add(color.Bold)
+
+func successMsg(s string) {
+	c := greenText.FprintFunc()
+	c(os.Stderr, s)
+}
+
+func errorMsg(s string) {
+	c := color.New(color.FgRed).Add(color.Bold).FprintFunc()
+	c(os.Stderr, s)
+}
+
+func boldMsg(s string) {
+	c := color.New(color.Bold).FprintFunc()
+	c(os.Stderr, s)
+}
+
+// Flags
+
 func main() {
+
+	limitFlag := cli.IntFlag{
+		Name:    "limit",
+		Aliases: []string{"l"},
+		Value:   10,
+		Usage:   "Max number of results to display",
+	}
 
 	var searchTerm string
 
@@ -142,13 +169,13 @@ func main() {
 				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
 					if c.Bool("clipboard") {
 						clipboard.WriteAll(fetchGistContent(v))
-						errlog.Println(Bold(Green("Copied to clipboard")))
+						successMsg("Copied to clipboard")
 					} else {
 						for g := range c.Args().Slice() {
 							if v, err := strconv.Atoi(c.Args().Get(g)); err == nil {
 								outputGist(v)
 							} else {
-								errlog.Println(Bold(Red(fmt.Sprintf("%v is an invalid ID", c.Args().Get(g)))))
+								errorMsg(fmt.Sprintf("%v is an invalid ID", c.Args().Get(g)))
 							}
 						}
 					}
@@ -173,7 +200,7 @@ func main() {
 					if v, err := strconv.Atoi(c.Args().Get(g)); err == nil {
 						rmGist(v)
 					} else {
-						errlog.Println(Bold(Red(fmt.Sprintf("%v is an invalid ID", c.Args().Get(g)))))
+						errorMsg(fmt.Sprintf("%v is an invalid ID", c.Args().Get(g)))
 					}
 				}
 				return nil
@@ -243,12 +270,7 @@ func main() {
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
 				},
-				&cli.IntFlag{
-					Name:        "limit",
-					Value:       int(10),
-					DefaultText: "10",
-					Usage:       "Max number of results to display",
-				},
+				&limitFlag,
 			},
 		},
 		{
@@ -277,11 +299,7 @@ func main() {
 					Value: "",
 					Usage: "Filter by tag (omit the # prefix)",
 				},
-				&cli.IntFlag{
-					Name:  "limit",
-					Value: 50,
-					Usage: "Number of results",
-				},
+				&limitFlag,
 				&cli.StringFlag{
 					Name:  "status",
 					Value: "all",
@@ -303,6 +321,7 @@ func main() {
 		},
 		{
 			Name:      "language",
+			Aliases:   []string{"languages"},
 			Usage:     "List or query language",
 			UsageText: "\n\t\tgg language [language name] [query]\n",
 			Category:  "Query",
@@ -312,11 +331,7 @@ func main() {
 					Value: "",
 					Usage: "Filter by language",
 				},
-				&cli.IntFlag{
-					Name:  "l, limit",
-					Value: 10,
-					Usage: "Max number of results to display",
-				},
+				&limitFlag,
 				&cli.StringFlag{
 					Name:  "status",
 					Value: "all",
@@ -347,11 +362,7 @@ func main() {
 					Value: "",
 					Usage: "Filter by owner",
 				},
-				&cli.IntFlag{
-					Name:  "l, limit",
-					Value: 10,
-					Usage: "Max number of results to display",
-				},
+				&limitFlag,
 				&cli.StringFlag{
 					Name:  "status",
 					Value: "all",

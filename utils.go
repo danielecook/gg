@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-
-	. "github.com/logrusorgru/aurora"
 )
 
 func check(e error) {
@@ -53,7 +51,7 @@ func filenameHeader(filename string) string {
 	   Prints filename header
 	*/
 	header := filename + "--------------------------------------------------------------------------"
-	return fmt.Sprintf("----%-25v\n", Blue(Bold(header[:60])))
+	return fmt.Sprintf("----%-25v\n", blueText.Sprint(header[:60]))
 }
 
 func outputPipe() bool {

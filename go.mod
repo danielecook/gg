@@ -12,6 +12,7 @@ require (
 	github.com/briandowns/spinner v1.8.0
 	github.com/couchbase/vellum v0.0.0-20190829182332-ef2e028c01fd // indirect
 	github.com/etcd-io/bbolt v1.3.3 // indirect
+	github.com/fatih/color v1.7.0
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/logrusorgru/aurora v0.0.0-20191116043053-66b7ad493a23
