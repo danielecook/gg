@@ -180,9 +180,11 @@ func getConfig() configuration {
 
 // authenticate - Setup user authentication with github token
 func authenticate(authToken string) (*github.Client, string) {
-	config := getConfig()
+	var login string
 	if authToken == "" {
+		config := getConfig()
 		authToken = config.AuthToken
+		login = config.Login
 	}
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
@@ -190,7 +192,7 @@ func authenticate(authToken string) (*github.Client, string) {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 	client.UserAgent = "github.com/danielecook/gg"
-	return client, config.Login
+	return client, login
 }
 
 func createGist(fileSet map[string]string, description string, public bool) {
@@ -420,5 +422,12 @@ func updateLibrary() {
 
 	docCount, err := dbIdx.DocCount()
 	fmt.Println()
-	successMsg(fmt.Sprintf("Loaded %v gists", docCount))
+	successMsg(fmt.Sprintf("Loaded %v gist%s\n", docCount, ifelse(docCount == 1, "", "s")))
+}
+
+func libExists() bool {
+	if _, err := os.Stat(libConfig); os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
