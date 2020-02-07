@@ -114,18 +114,22 @@ func main() {
 			},
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "d, description",
-					Usage: "Set the description for gist",
+					Name:    "description",
+					Aliases: []string{"d"},
+					Usage:   "Set the description for gist",
 				},
 				&cli.StringFlag{
-					Name:  "f, filename",
-					Usage: "Set the filename with --clipboard or stdin",
+					Name:    "filename",
+					Aliases: []string{"f"},
+					Usage:   "Set the filename with --clipboard or stdin",
 				},
 				&cli.BoolFlag{
-					Name: "p, private",
+					Name:    "private",
+					Aliases: []string{"p"},
 				},
 				&cli.BoolFlag{
-					Name: "c, clipboard",
+					Name:    "clipboard",
+					Aliases: []string{"c"},
 				},
 			},
 		},
@@ -287,6 +291,7 @@ func main() {
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
 				},
+				&limitFlag,
 			},
 		},
 		{

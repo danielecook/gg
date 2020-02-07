@@ -48,12 +48,13 @@ func resultTable(results []*search.DocumentMatch, isQuery bool) {
 	table.SetHeader(header)
 	table.SetColWidth(colWidth)
 	table.SetColMinWidth(3, int(float32(colWidth)*2.5))
-	table.SetColumnSeparator(" ")
-	table.SetCenterSeparator("-")
+	table.SetColumnSeparator("\t")
+	table.SetCenterSeparator("\t")
+	table.SetHeaderLine(false)
 	// Give Description 2x width
 	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
 	table.AppendBulk(tableData)
-	table.SetTablePadding("\t")
+	//table.SetTablePadding("")
 	table.SetAutoWrapText(false)
 	table.Render()
 }

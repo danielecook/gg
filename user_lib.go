@@ -234,7 +234,7 @@ func rmGist(gistID int) {
 		ThrowError(fmt.Sprintf("Error: %s", err), 1)
 	}
 	// Print URL on success
-	msg := fmt.Sprintf("Removed %s", gist.Fields["GistID"].(string))
+	msg := fmt.Sprintf("Removed %s\n", gist.Fields["GistID"].(string))
 
 	// Remove from search index
 	dbIdx.Delete(gist.ID)
@@ -368,7 +368,7 @@ func updateLibrary() {
 	// Parse library
 	var Library []*Snippet
 	Library = make([]*Snippet, len(allGists))
-	boldMsg(fmt.Sprintf("Loading Gists for %s", username))
+	boldMsg(fmt.Sprintf("Loading Gists for %s\n", username))
 
 	// Dump previous DB to determine whether
 	// gists need to be updated.
@@ -390,7 +390,7 @@ func updateLibrary() {
 		bar.Add(1)
 	}
 
-	boldMsg("\nIndexing Gists")
+	boldMsg("Indexing Gists\n")
 	batch := dbIdx.NewBatch()
 
 	// Delete gist IDs that no longer exist

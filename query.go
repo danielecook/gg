@@ -174,6 +174,9 @@ func lookupGist(gistIdx int) *search.DocumentMatch {
 // Returns the next IDX to use
 func nextIdx() int {
 	dc, _ := dbIdx.DocCount()
+	if dc == 0 {
+		return 0
+	}
 	q := query.NewMatchAllQuery()
 	sr := bleve.NewSearchRequest(q)
 	sr.Fields = []string{"IDX"}
