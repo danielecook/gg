@@ -114,7 +114,7 @@ func ls(searchTerm string, sortBy string, tag string, language string, starred b
 	sr.Fields = []string{"*"}
 	results, err := dbIdx.Search(sr)
 	if err != nil || len(results.Hits) == 0 {
-		fmt.Println("No Results")
+		errorMsg("No Results\n")
 		os.Exit(0)
 	}
 	resultTable(results.Hits, isQuery)

@@ -31,6 +31,10 @@ jobs:
         mkdir bin
         mv gg bin
 
+    - name: Test
+      run: |
+        bash tests/functional-tests.sh
+
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:

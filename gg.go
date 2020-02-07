@@ -37,18 +37,16 @@ func boldMsg(s string) {
 
 // Flags
 
-var defaultFlags = []cli.Flag{
-	&cli.IntFlag{
-		Name:    "limit",
-		Aliases: []string{"l"},
-		Value:   10,
-		Usage:   "Max number of results to display",
-	},
-	&cli.StringFlag{
-		Name:  "status",
-		Value: "all",
-		Usage: "Filter by (all|public|private)",
-	},
+var limitFlag = cli.IntFlag{
+	Name:    "limit",
+	Aliases: []string{"l"},
+	Value:   10,
+	Usage:   "Max number of results to display",
+}
+var statusFlag = cli.StringFlag{
+	Name:  "status",
+	Value: "all",
+	Usage: "Filter by (all|public|private)",
 }
 
 func main() {
@@ -167,6 +165,17 @@ func main() {
 			},
 		},
 		{
+			Name:      "logout",
+			Usage:     "Logout",
+			UsageText: "\n\t\tgg logout\n",
+			Category:  "Library",
+			Action: func(c *cli.Context) error {
+				deleteLibrary()
+				successMsg("Successfully Logged out\n")
+				return nil
+			},
+		},
+		{
 			Name:                   "open",
 			Aliases:                []string{"o"},
 			Usage:                  "Copy or output a single gist",
@@ -250,7 +259,7 @@ func main() {
 				}
 				return nil
 			},
-			Flags: append([]cli.Flag{
+			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "t, tag",
 					Value: "",
@@ -278,7 +287,7 @@ func main() {
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
 				},
-			}, defaultFlags...),
+			},
 		},
 		{
 			Name:      "search",
@@ -326,7 +335,7 @@ func main() {
 			Usage:     "List or query language",
 			UsageText: "\n\t\tgg language [language name] [query]\n",
 			Category:  "Query",
-			Flags: append([]cli.Flag{
+			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "query",
 					Value: "",
@@ -337,7 +346,7 @@ func main() {
 					Value: "all",
 					Usage: "Filter by (all|public|private)",
 				},
-			}, defaultFlags...),
+			},
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
 					fieldSummary("Language")
@@ -356,13 +365,13 @@ func main() {
 			Usage:     "List or query owner",
 			UsageText: "\n\t\tgg language [owner] [query]\n",
 			Category:  "Query",
-			Flags: append([]cli.Flag{
+			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "query",
 					Value: "",
 					Usage: "Filter by owner",
 				},
-			}, defaultFlags...),
+			},
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
 					fieldSummary("Owner")
@@ -392,7 +401,7 @@ func main() {
 	// Check that user has logged in
 	if libExists() == false {
 		if len(args) >= 2 {
-			if args[1] != "sync" {
+			if args[1] != "sync" && args[1] != "logout" {
 				errMsg := "No library found. Run 'gg sync --token <github token>'"
 				ThrowError(errMsg, 1)
 			}
