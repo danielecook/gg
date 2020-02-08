@@ -16,9 +16,10 @@ import (
 )
 
 var errlog = log.New(os.Stderr, "", 0)
-
+var debug = false
 var greenText = color.New(color.FgGreen).Add(color.Bold)
 var blueText = color.New(color.FgBlue).Add(color.Bold)
+var squery = searchQuery{}
 
 func successMsg(s string) {
 	c := greenText.FprintFunc()
@@ -35,8 +36,23 @@ func boldMsg(s string) {
 	c(os.Stderr, s)
 }
 
-// Flags
+func debugMsg(s string) {
+	if debug {
+		c := color.New(color.Bold).Add(color.FgBlue).FprintlnFunc()
+		c(os.Stderr, s)
+	}
+}
 
+func fillQuery(squery *searchQuery, c *cli.Context) {
+	squery.tag = c.String("tag")
+	squery.language = c.String("language")
+	squery.starred = c.Bool("starred")
+	squery.status = c.String("status")
+	squery.limit = c.Int("limit")
+	squery.debug = c.Bool("debug")
+}
+
+// Flags
 var limitFlag = cli.IntFlag{
 	Name:    "limit",
 	Aliases: []string{"l"},
@@ -59,7 +75,6 @@ func main() {
 	app.Usage = "A tool for Github Gists\n\n\t gg <ID> - retrieve gist"
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
-
 	app.Authors = []*cli.Author{
 		{
 			Name:  "Daniel Cook",
@@ -67,6 +82,18 @@ func main() {
 		},
 	}
 
+	app.Flags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:   "debug",
+			Value:  false,
+			Hidden: true,
+		},
+	}
+	app.Before = func(c *cli.Context) error {
+		debug = c.Bool("debug")
+		debugMsg("Debug mode on")
+		return nil
+	}
 	app.Commands = []*cli.Command{
 		{
 			Name:                   "new",
@@ -258,8 +285,9 @@ func main() {
 					for i := 0; i <= c.NArg(); i++ {
 						searchTerm += " " + c.Args().Get(i)
 					}
-					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", c.String("tag"), c.String("language"), c.Bool("starred"), c.String("status"), c.Int("limit"))
+					squery.term = strings.Trim(searchTerm, " ")
+					fillQuery(&squery, c)
+					ls(&squery)
 				}
 				return nil
 			},
@@ -320,16 +348,19 @@ func main() {
 					Value: "",
 					Usage: "Filter by tag (omit the # prefix)",
 				},
+				&statusFlag,
+				&limitFlag,
 			},
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
 					fieldSummary("Tags")
 				} else {
-					for i := 1; i <= c.NArg(); i++ {
-						searchTerm += " " + c.Args().Get(i)
+					if len(c.Args().Slice()) > 1 {
+						searchTerm = strings.Join(c.Args().Slice()[1:len(c.Args().Slice())], " ")
 					}
-					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", c.Args().Get(0), "", false, c.String("status"), c.Int("limit"))
+					squery.term = strings.Trim(searchTerm, " ")
+					fillQuery(&squery, c)
+					ls(&squery)
 				}
 				return nil
 			},
@@ -338,7 +369,7 @@ func main() {
 			Name:      "language",
 			Aliases:   []string{"languages"},
 			Usage:     "List or query language",
-			UsageText: "\n\t\tgg language [language name] [query]\n",
+			UsageText: "\n\t\tgg language [language-name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -346,21 +377,19 @@ func main() {
 					Value: "",
 					Usage: "Filter by language",
 				},
-				&cli.StringFlag{
-					Name:  "status",
-					Value: "all",
-					Usage: "Filter by (all|public|private)",
-				},
+				&statusFlag,
+				&limitFlag,
 			},
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
 					fieldSummary("Language")
 				} else {
-					for i := 1; i <= c.NArg(); i++ {
-						searchTerm += " " + c.Args().Get(i)
+					if len(c.Args().Slice()) > 1 {
+						searchTerm = strings.Join(c.Args().Slice()[1:len(c.Args().Slice())], " ")
 					}
-					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", "", c.Args().Get(0), false, c.String("status"), c.Int("limit"))
+					squery.term = strings.Trim(searchTerm, " ")
+					fillQuery(&squery, c)
+					ls(&squery)
 				}
 				return nil
 			},
@@ -368,24 +397,27 @@ func main() {
 		{
 			Name:      "owner",
 			Usage:     "List or query owner",
-			UsageText: "\n\t\tgg language [owner] [query]\n",
+			UsageText: "\n\t\tgg owner [owner] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "query",
+					Name:  "owner",
 					Value: "",
 					Usage: "Filter by owner",
 				},
+				&statusFlag,
+				&limitFlag,
 			},
 			Action: func(c *cli.Context) error {
 				if c.Args().First() == "" {
 					fieldSummary("Owner")
 				} else {
-					for i := 1; i <= c.NArg(); i++ {
-						searchTerm += " " + c.Args().Get(i)
+					if len(c.Args().Slice()) > 1 {
+						searchTerm = strings.Join(c.Args().Slice()[1:len(c.Args().Slice())], " ")
 					}
-					searchTerm = strings.Trim(searchTerm, " ")
-					ls(searchTerm, "", "", c.Args().Get(0), false, c.String("status"), c.Int("limit"))
+					squery.term = strings.Trim(searchTerm, " ")
+					fillQuery(&squery, c)
+					ls(&squery)
 				}
 				return nil
 			},

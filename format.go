@@ -32,25 +32,40 @@ func resultTable(results []*search.DocumentMatch, isQuery bool) {
 			tableData[idx] = append(tableData[idx], fmt.Sprintf("%1.3f", gist.Score))
 		}
 	}
+	// Render results
+	table := tablewriter.NewWriter(os.Stdout)
 
-	// Terminal Window size
-	var xsize, _, _ = terminal.GetSize(0)
+	/*
+		Header
+	*/
 	var header = []string{"ID", "⭐", "🔒", "Description", "Filename", "Language", "Author", "Updated"}
 	if isQuery {
 		header = append(header, "Score")
 	}
+	table.SetAutoFormatHeaders(false)
+	table.SetHeader(header)
+
+	var headerColors []tablewriter.Colors
+	headerColors = make([]tablewriter.Colors, len(header))
+	for i := 0; i < len(header); i++ {
+		headerColors[i] = tablewriter.Colors{tablewriter.Bold}
+	}
+	table.SetHeaderColor(headerColors...)
+	table.SetHeaderLine(true)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+
+	/*
+		Format
+	*/
+	// Terminal Window size
+	var xsize, _, _ = terminal.GetSize(0)
+
 	var colWidth int
 	colWidth = (xsize / len(header))
-	// Render results
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoFormatHeaders(false)
-	//table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeader(header)
 	table.SetColWidth(colWidth)
 	table.SetColMinWidth(3, int(float32(colWidth)*2.5))
 	table.SetColumnSeparator("\t")
 	table.SetCenterSeparator("\t")
-	table.SetHeaderLine(false)
 	// Give Description 2x width
 	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
 	table.AppendBulk(tableData)

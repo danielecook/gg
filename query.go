@@ -64,50 +64,62 @@ func fieldSummary(field string) {
 
 }
 
+type searchQuery struct {
+	term     string
+	sort     string
+	tag      string
+	language string
+	starred  bool
+	status   string
+	limit    int
+	debug    bool
+}
+
 // ls - the primary query interface
-func ls(searchTerm string, sortBy string, tag string, language string, starred bool, status string, limit int) {
+func ls(search *searchQuery) {
 	var qstring string
 	// Consider reworking filtering here to be done manually...
-	if searchTerm != "" {
-		qstring = fmt.Sprintf("%s", searchTerm)
+	if search.term != "" {
+		qstring = fmt.Sprintf("%s", search.term)
 	}
 
-	if tag != "" {
-		qstring = fmt.Sprintf("+Tags:%v %s", tag, qstring)
+	if search.tag != "" {
+		qstring = fmt.Sprintf("+Tags:%v %s", search.tag, qstring)
 	}
 
-	if language != "" {
-		qstring = fmt.Sprintf("+Language:%v %s", language, qstring)
+	if search.language != "" {
+		qstring = fmt.Sprintf("+Language:%v %s", search.language, qstring)
 	}
 
-	if starred {
+	if search.starred {
 		qstring = fmt.Sprintf("+Starred:T %s", qstring)
 	}
 
-	if status == "public" {
+	if search.status == "public" {
 		qstring = fmt.Sprintf("+Public:T %s", qstring)
-	} else if status == "private" {
+	} else if search.status == "private" {
 		qstring = fmt.Sprintf("+Public:F %s", qstring)
-	} else if status != "all" {
+	} else if search.status != "all" {
 		ThrowError("--public must be 'all', 'public', or 'private'", 1)
 	}
 
+	debugMsg(fmt.Sprintf("Query: %s", qstring))
 	qstring = strings.Trim(qstring, " ")
 	var isQuery bool
 	var sr *bleve.SearchRequest
 	//dc, _ := dbIdx.DocCount()
 	// dump when no query params present
-	if searchTerm == "" && qstring == "" && status == "all" {
+	if search.term == "" && qstring == "" && search.status == "all" {
 		q := query.NewMatchAllQuery()
 		sr = bleve.NewSearchRequest(q)
-		sr.Size = limit
+		sr.Size = search.limit
 		sr.SortBy([]string{"-UpdatedAt"})
 		isQuery = false
 	} else {
 		q := query.NewQueryStringQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
 		//sr.Highlight = bleve.NewHighlightWithStyle("ansi")
-		sr.Size = limit
+		sr.Size = search.limit
 		isQuery = true
 	}
 
