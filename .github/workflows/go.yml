@@ -34,8 +34,8 @@ jobs:
     - name: Test
       env: 
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
-          PATH: "$PATH:~/bin"
       run: |
+        export PATH="${PATH}:~/bin"
         bash tests/functional-tests.sh
 
     - name: Upload artifact
