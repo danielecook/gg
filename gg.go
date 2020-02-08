@@ -45,6 +45,8 @@ func debugMsg(s string) {
 
 func fillQuery(squery *searchQuery, c *cli.Context) {
 	squery.tag = c.String("tag")
+	squery.owner = c.String("owner")
+	squery.sort = strings.ToLower(c.String("sort"))
 	squery.language = c.String("language")
 	squery.starred = c.Bool("starred")
 	squery.status = c.String("status")
@@ -53,16 +55,35 @@ func fillQuery(squery *searchQuery, c *cli.Context) {
 }
 
 // Flags
+var sortFlag = cli.StringFlag{
+	Name:  "sort",
+	Value: "-UpdatedAt",
+	Usage: "Sort by field",
+}
+
 var limitFlag = cli.IntFlag{
 	Name:    "limit",
 	Aliases: []string{"l"},
 	Value:   10,
 	Usage:   "Max number of results to display",
 }
+
 var statusFlag = cli.StringFlag{
 	Name:  "status",
 	Value: "all",
 	Usage: "Filter by (all|public|private)",
+}
+
+var tagFlag = cli.StringFlag{
+	Name:  "t, tag",
+	Value: "",
+	Usage: "Filter by tag (omit the # prefix)",
+}
+
+var languageFlag = cli.StringFlag{
+	Name:  "language",
+	Value: "",
+	Usage: "Filter by language (case-insensitive)",
 }
 
 func main() {
@@ -292,16 +313,8 @@ func main() {
 				return nil
 			},
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "t, tag",
-					Value: "",
-					Usage: "Filter by tag (omit the # prefix)",
-				},
-				&cli.StringFlag{
-					Name:  "language",
-					Value: "",
-					Usage: "Filter by language (case-insensitive)",
-				},
+				&tagFlag,
+				&languageFlag,
 				&cli.BoolFlag{
 					Name:  "s, starred",
 					Usage: "Filter by starred snippets",
@@ -319,6 +332,7 @@ func main() {
 					Name:  "o, output",
 					Usage: "Output content of each snippet",
 				},
+				&sortFlag,
 				&limitFlag,
 			},
 		},
@@ -360,6 +374,7 @@ func main() {
 					}
 					squery.term = strings.Trim(searchTerm, " ")
 					fillQuery(&squery, c)
+					squery.tag = c.Args().First()
 					ls(&squery)
 				}
 				return nil
@@ -389,6 +404,7 @@ func main() {
 					}
 					squery.term = strings.Trim(searchTerm, " ")
 					fillQuery(&squery, c)
+					squery.language = c.Args().First()
 					ls(&squery)
 				}
 				return nil
@@ -417,6 +433,7 @@ func main() {
 					}
 					squery.term = strings.Trim(searchTerm, " ")
 					fillQuery(&squery, c)
+					squery.owner = c.Args().First()
 					ls(&squery)
 				}
 				return nil

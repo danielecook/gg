@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
+	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search"
+	"github.com/blevesearch/bleve/search/query"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -38,7 +41,7 @@ func resultTable(results []*search.DocumentMatch, isQuery bool) {
 	/*
 		Header
 	*/
-	var header = []string{"ID", "⭐", "🔒", "Description", "Filename", "Language", "Author", "Updated"}
+	var header = []string{"ID", "⭐", "🔒", "Description", "Filename", "Language", "Owner", "Updated"}
 	if isQuery {
 		header = append(header, "Score")
 	}
@@ -71,6 +74,43 @@ func resultTable(results []*search.DocumentMatch, isQuery bool) {
 	table.AppendBulk(tableData)
 	//table.SetTablePadding("")
 	table.SetAutoWrapText(false)
+	table.Render()
+}
+
+/*
+	Summarize a field
+*/
+func fieldSummary(field string) {
+	// Calculates frequencies for a given field
+	facet := bleve.NewFacetRequest(field, 100000)
+	query := query.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(query)
+	searchRequest.AddFacet("count", facet)
+	searchResults, err := dbIdx.Search(searchRequest)
+	if err != nil {
+		panic(err)
+	}
+
+	// term with highest occurrences in field name
+	data := make([][]string, searchResults.Size())
+	for idx, val := range searchResults.Facets["count"].Terms {
+		data[idx] = []string{val.Term, strconv.Itoa(val.Count)}
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoFormatHeaders(false)
+	table.SetHeader([]string{field, "Count"})
+	table.SetHeaderColor(
+		tablewriter.Colors{tablewriter.Bold},
+		tablewriter.Colors{tablewriter.Bold},
+	)
+	table.SetHeaderLine(true)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+
+	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
+	table.AppendBulk(data)
+	table.SetColumnSeparator("\t")
+	table.SetCenterSeparator("\t")
 	table.Render()
 }
 

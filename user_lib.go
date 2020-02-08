@@ -77,7 +77,6 @@ type Snippet struct {
 	Comments    int                                     `json:"Comments"`
 	CreatedAt   time.Time                               `json:"CreatedAt"`
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
-	Snippet     string                                  `json:"Snippet"`
 	URL         string                                  `json:"URL"`
 }
 

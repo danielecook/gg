@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/alecthomas/chroma/lexers"
@@ -13,12 +12,42 @@ import (
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
-	"github.com/olekukonko/tablewriter"
 )
 
 type libSummary struct {
 	gists uint64
 	files int
+}
+
+type searchQuery struct {
+	term     string
+	sort     string
+	tag      string
+	owner    string
+	language string
+	starred  bool
+	status   string
+	limit    int
+	debug    bool
+}
+
+// Used to allow more flexibility when specifying sort.
+var sortMap = map[string]string{
+	"":            "-UpdatedAt",
+	"id":          "IDX",
+	"owner":       "Owner",
+	"description": "Description",
+	"public":      "Public",
+	"private":     "Public",
+	"filename":    "Filename",
+	"language":    "Language",
+	"tag":         "Tags",
+	"tags":        "Tags",
+	"-starred":    "Starred",
+	"starred":     "-Starred",
+	"created":     "CreatedAt",
+	"createdat":   "CreatedAt",
+	"updated":     "UpdatedAt",
 }
 
 func librarySummary() libSummary {
@@ -34,45 +63,6 @@ func librarySummary() libSummary {
 		nfiles += gist.Fields["NFiles"].(int)
 	}
 	return libSummary{gists: dc, files: nfiles}
-}
-
-/*
-	Summarize a field
-*/
-func fieldSummary(field string) {
-	// Calculates frequencies for a given field
-	facet := bleve.NewFacetRequest(field, 100000)
-	query := query.NewMatchAllQuery()
-	searchRequest := bleve.NewSearchRequest(query)
-	searchRequest.AddFacet("count", facet)
-	searchResults, err := dbIdx.Search(searchRequest)
-	if err != nil {
-		panic(err)
-	}
-
-	// term with highest occurrences in field name
-	data := make([][]string, searchResults.Size())
-	for idx, val := range searchResults.Facets["count"].Terms {
-		data[idx] = []string{val.Term, strconv.Itoa(val.Count)}
-	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{field, "Count"})
-	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
-	table.AppendBulk(data)
-	table.Render()
-
-}
-
-type searchQuery struct {
-	term     string
-	sort     string
-	tag      string
-	language string
-	starred  bool
-	status   string
-	limit    int
-	debug    bool
 }
 
 // ls - the primary query interface
@@ -95,6 +85,10 @@ func ls(search *searchQuery) {
 		qstring = fmt.Sprintf("+Starred:T %s", qstring)
 	}
 
+	if search.owner != "" {
+		qstring = fmt.Sprintf("+Owner:%v %s", search.owner, qstring)
+	}
+
 	if search.status == "public" {
 		qstring = fmt.Sprintf("+Public:T %s", qstring)
 	} else if search.status == "private" {
@@ -104,16 +98,17 @@ func ls(search *searchQuery) {
 	}
 
 	debugMsg(fmt.Sprintf("Query: %s", qstring))
+	debugMsg(fmt.Sprintf("%+v", search))
+
 	qstring = strings.Trim(qstring, " ")
 	var isQuery bool
 	var sr *bleve.SearchRequest
-	//dc, _ := dbIdx.DocCount()
+
 	// dump when no query params present
 	if search.term == "" && qstring == "" && search.status == "all" {
 		q := query.NewMatchAllQuery()
 		sr = bleve.NewSearchRequest(q)
 		sr.Size = search.limit
-		sr.SortBy([]string{"-UpdatedAt"})
 		isQuery = false
 	} else {
 		q := query.NewQueryStringQuery(qstring)
@@ -122,8 +117,18 @@ func ls(search *searchQuery) {
 		sr.Size = search.limit
 		isQuery = true
 	}
+	reverse := false
+	// Handle sorting
+	sortBy := sortMap[search.sort]
+	if sortBy == "" && search.sort[0] == '-' {
+		sortBy = fmt.Sprintf("-%s", sortMap[strings.Trim(search.sort, "-")])
+	}
+	sr.SortBy([]string{sortBy})
+	debugMsg(sortBy)
+	debugMsg(fmt.Sprint(reverse))
 
 	sr.Fields = []string{"*"}
+
 	results, err := dbIdx.Search(sr)
 	if err != nil || len(results.Hits) == 0 {
 		errorMsg("No Results\n")
