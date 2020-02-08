@@ -18,6 +18,7 @@ import (
 var errlog = log.New(os.Stderr, "", 0)
 var debug = false
 var greenText = color.New(color.FgGreen).Add(color.Bold)
+var highlightText = color.New(color.FgGreen).Add(color.Bold).Add(color.Underline)
 var blueText = color.New(color.FgBlue).Add(color.Bold)
 var squery = searchQuery{}
 
@@ -55,6 +56,12 @@ func fillQuery(squery *searchQuery, c *cli.Context) {
 }
 
 // Flags
+var starredFlag = cli.BoolFlag{
+	Name:    "starred",
+	Aliases: []string{"s"},
+	Usage:   "Filter by starred snippets",
+}
+
 var sortFlag = cli.StringFlag{
 	Name:  "sort",
 	Value: "-UpdatedAt",
@@ -71,19 +78,20 @@ var limitFlag = cli.IntFlag{
 var statusFlag = cli.StringFlag{
 	Name:  "status",
 	Value: "all",
-	Usage: "Filter by (all|public|private)",
+	Usage: "Filter by [all|public|private]",
 }
 
 var tagFlag = cli.StringFlag{
-	Name:  "t, tag",
-	Value: "",
-	Usage: "Filter by tag (omit the # prefix)",
+	Name:    "tag",
+	Aliases: []string{"t"},
+	Value:   "",
+	Usage:   "Filter by tag; omit the # prefix",
 }
 
 var languageFlag = cli.StringFlag{
 	Name:  "language",
 	Value: "",
-	Usage: "Filter by language (case-insensitive)",
+	Usage: "Filter by language",
 }
 
 func main() {
@@ -315,23 +323,8 @@ func main() {
 			Flags: []cli.Flag{
 				&tagFlag,
 				&languageFlag,
-				&cli.BoolFlag{
-					Name:  "s, starred",
-					Usage: "Filter by starred snippets",
-				},
-				&cli.BoolFlag{
-					Name:  "f, forked",
-					Usage: "Filter by forked snippets",
-				},
-				&cli.StringFlag{
-					Name:  "status",
-					Value: "all",
-					Usage: "Filter by (all|public|private)",
-				},
-				&cli.BoolFlag{
-					Name:  "o, output",
-					Usage: "Output content of each snippet",
-				},
+				&starredFlag,
+				&statusFlag,
 				&sortFlag,
 				&limitFlag,
 			},

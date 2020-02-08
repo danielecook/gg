@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -14,21 +15,34 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+func caseInsensitiveReplace(subject string, search string, replace string) string {
+	searchRegex := regexp.MustCompile("(?i)" + regexp.QuoteMeta(search))
+	return searchRegex.ReplaceAllString(subject, replace)
+}
+
+func highlightTerms(s string, terms []string) string {
+	for _, term := range terms {
+		s = caseInsensitiveReplace(s, term, highlightText.Sprint(term))
+	}
+	return s
+}
+
 // Generate a result table
-func resultTable(results []*search.DocumentMatch, isQuery bool) {
+func resultTable(results []*search.DocumentMatch, isQuery bool, highlightTermSet []string) {
 	tableData := make([][]string, len(results))
 	for idx, gist := range results {
 
 		updatedAt := strings.Split(gist.Fields["UpdatedAt"].(string), "T")[0]
 
+		debugMsg(fmt.Sprint(highlightTermSet))
 		tableData[idx] = []string{
 			fmt.Sprintf("%v", gist.Fields["IDX"]),
 			ifelse(gist.Fields["Starred"].(string) == "T", "⭐", ""),
 			ifelse(gist.Fields["Public"].(string) == "F", "🔒", ""),
-			gist.Fields["Description"].(string),
-			fmt.Sprintf("%v", gist.Fields["Filename"]),
-			fmt.Sprintf("%v", gist.Fields["Language"]),
-			gist.Fields["Owner"].(string),
+			highlightTerms(gist.Fields["Description"].(string), highlightTermSet),
+			highlightTerms(fmt.Sprintf("%v", gist.Fields["Filename"]), highlightTermSet),
+			highlightTerms(fmt.Sprintf("%v", gist.Fields["Language"]), highlightTermSet),
+			highlightTerms(gist.Fields["Owner"].(string), highlightTermSet),
 			updatedAt,
 		}
 		if isQuery {

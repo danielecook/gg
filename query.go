@@ -37,8 +37,10 @@ var sortMap = map[string]string{
 	"id":          "IDX",
 	"owner":       "Owner",
 	"description": "Description",
-	"public":      "Public",
+	"public":      "-Public",
+	"-public":     "Public",
 	"private":     "Public",
+	"-private":    "-Public",
 	"filename":    "Filename",
 	"language":    "Language",
 	"tag":         "Tags",
@@ -68,17 +70,21 @@ func librarySummary() libSummary {
 // ls - the primary query interface
 func ls(search *searchQuery) {
 	var qstring string
+	var highlightTermSet []string
 	// Consider reworking filtering here to be done manually...
 	if search.term != "" {
 		qstring = fmt.Sprintf("%s", search.term)
+		highlightTermSet = append(highlightTermSet, search.term)
 	}
 
 	if search.tag != "" {
 		qstring = fmt.Sprintf("+Tags:%v %s", search.tag, qstring)
+		highlightTermSet = append(highlightTermSet, "#"+search.tag)
 	}
 
 	if search.language != "" {
 		qstring = fmt.Sprintf("+Language:%v %s", search.language, qstring)
+		highlightTermSet = append(highlightTermSet, search.language)
 	}
 
 	if search.starred {
@@ -87,6 +93,7 @@ func ls(search *searchQuery) {
 
 	if search.owner != "" {
 		qstring = fmt.Sprintf("+Owner:%v %s", search.owner, qstring)
+		highlightTermSet = append(highlightTermSet, search.owner)
 	}
 
 	if search.status == "public" {
@@ -134,7 +141,7 @@ func ls(search *searchQuery) {
 		errorMsg("No Results\n")
 		os.Exit(0)
 	}
-	resultTable(results.Hits, isQuery)
+	resultTable(results.Hits, isQuery, highlightTermSet)
 }
 
 // Perform fuzzy search
@@ -151,7 +158,7 @@ func fuzzySearch(searchTerm string) {
 	if err != nil {
 		fmt.Println("No Results")
 	}
-	resultTable(results.Hits, isQuery)
+	resultTable(results.Hits, isQuery, []string{})
 }
 
 func highlight(out io.Writer, filename string, content string, formatter string, style string) {
