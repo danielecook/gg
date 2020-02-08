@@ -4,8 +4,13 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
-    steps:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+      os: [macos-latest, ubuntu-18.04]
+      node: [1]
+    
+      steps:
 
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
