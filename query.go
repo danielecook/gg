@@ -189,8 +189,9 @@ func lookupGist(gistIdx int) *search.DocumentMatch {
 	sr := bleve.NewSearchRequest(q)
 	sr.Fields = []string{"*"}
 	searchResults, err := dbIdx.Search(sr)
-	if err != nil {
-		panic(err)
+	if err != nil || len(searchResults.Hits) == 0 {
+		errorMsg(fmt.Sprintf("%d is not a valid ID\n", gistIdx))
+		os.Exit(0)
 	}
 	return searchResults.Hits[0]
 }
