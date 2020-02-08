@@ -4,7 +4,7 @@ test -e ssshtest || wget -q https://raw.githubusercontent.com/ryanlayer/ssshtest
 . ssshtest
 
 PARENT_DIR=`git rev-parse --show-toplevel`
-export PATH="${PATH}:${PARENT_DIR}"
+export PATH="${PATH}:~/bin:${PARENT_DIR}"
 
 set -o nounset
 
