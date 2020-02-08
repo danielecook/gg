@@ -10,7 +10,7 @@ jobs:
       os: [macos-latest, ubuntu-18.04]
       node: [1]
     
-      steps:
+    steps:
 
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
