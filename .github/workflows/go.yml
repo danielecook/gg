@@ -32,6 +32,8 @@ jobs:
         mv gg bin
 
     - name: Test
+      env: 
+          TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
         bash tests/functional-tests.sh
 
