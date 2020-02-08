@@ -74,7 +74,11 @@ func ls(search *searchQuery) {
 	// Consider reworking filtering here to be done manually...
 	if search.term != "" {
 		qstring = fmt.Sprintf("%s", search.term)
-		highlightTermSet = append(highlightTermSet, search.term)
+		// TODO: Fix term splitting
+		debugMsg(fmt.Sprint(strings.Split(search.term, " ")))
+		highlightTermSet = append(highlightTermSet, strings.Split(search.term, " ")...)
+		debugMsg(fmt.Sprintf("highlight- %+v", highlightTermSet))
+		debugMsg("TERM")
 	}
 
 	if search.tag != "" {
@@ -124,15 +128,13 @@ func ls(search *searchQuery) {
 		sr.Size = search.limit
 		isQuery = true
 	}
-	reverse := false
+
 	// Handle sorting
 	sortBy := sortMap[search.sort]
 	if sortBy == "" && search.sort[0] == '-' {
 		sortBy = fmt.Sprintf("-%s", sortMap[strings.Trim(search.sort, "-")])
 	}
 	sr.SortBy([]string{sortBy})
-	debugMsg(sortBy)
-	debugMsg(fmt.Sprint(reverse))
 
 	sr.Fields = []string{"*"}
 

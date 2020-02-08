@@ -17,7 +17,12 @@ import (
 
 func caseInsensitiveReplace(subject string, search string, replace string) string {
 	searchRegex := regexp.MustCompile("(?i)" + regexp.QuoteMeta(search))
-	return searchRegex.ReplaceAllString(subject, replace)
+	pos := searchRegex.FindStringIndex(subject)
+	if pos != nil {
+		start, stop := pos[0], pos[1]
+		return subject[:start] + highlightText.Sprintf(subject[start:stop]) + subject[stop:len(subject)]
+	}
+	return subject
 }
 
 func highlightTerms(s string, terms []string) string {
