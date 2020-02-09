@@ -53,5 +53,6 @@ jobs:
     name: spellcheck
     runs-on: ubuntu-18.04
     timeout-minutes: 5
-    - name: Spellcheck Action
-      uses: rojopolis/spellcheck-github-actions@0.2.0
+    steps:
+      - name: Spellcheck Action
+        uses: rojopolis/spellcheck-github-actions@0.2.0
