@@ -34,7 +34,7 @@ jobs:
         chmod +x gg
         mkdir pub
         cp gg pub
-        cp gg /usr/local/bin
+        export PATH="${PATH}:$(PWD)/pub"
 
     - name: Test
       env: 
