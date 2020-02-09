@@ -38,15 +38,15 @@ jobs:
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
         export PATH="${PATH}:`pwd`"
-        ls -lah
         gg sync --token ${TEST_TOKEN}
         echo "test_gist" > test_gist.txt
-        gg new --description "test text"  test_gist.txt
         ls -lah
+        gg new --description "test text"  test_gist.txt
         bash tests/functional-tests.sh
 
-    - name: shellcheck
-      uses: ludeeus/action-shellcheck@0.1.0
+    - name: todo-actions
+      uses: dtinth/todo-actions@v0.2.0
+
 
 
     - name: Upload artifact
