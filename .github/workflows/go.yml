@@ -41,18 +41,8 @@ jobs:
         echo "${PATH}"
         bash tests/functional-tests.sh
 
-
-
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: gg
         path: pub 
-
-  spellcheck:
-    name: spellcheck
-    runs-on: ubuntu-18.04
-    timeout-minutes: 5
-    steps:
-      - name: Spellcheck Action
-        uses: rojopolis/spellcheck-github-actions@0.2.0

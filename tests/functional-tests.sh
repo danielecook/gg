@@ -5,6 +5,10 @@ test -e ssshtest || wget -q https://raw.githubusercontent.com/ryanlayer/ssshtest
 
 set -o nounset
 
+
+pwd
+ls -lah
+
 # Main
 run test_g gg
 assert_no_stderr
@@ -23,7 +27,10 @@ assert_in_stderr "ggtest-2"
 
 # Delete leftover gists
 
-./gg new --description "db.go test" db.go
+run test ls
+assert_in_stdout "db.go"
+
+./gg new --description "db.go test" db.go --filename 'db.go'
 # Create new gist - stdin
 run test_new gg new --description "db.go test" db.go
 assert_in_stderr https://gist.github.com/
