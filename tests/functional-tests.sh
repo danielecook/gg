@@ -21,6 +21,7 @@ run test_ls gg ls
 assert_no_stdout
 
 # Login
+ls -lah
 run test_login gg sync --token ${TEST_TOKEN}
 assert_in_stderr "ggtest-2"
 
