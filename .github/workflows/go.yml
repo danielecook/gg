@@ -5,6 +5,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-18.04
+    timeout-minutes: 5
     
     steps:
 

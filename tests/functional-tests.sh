@@ -27,7 +27,7 @@ assert_in_stderr "ggtest-2"
 # Delete leftover gists
 
 # Create new gist - stdin
-run test_new gg new db.go
+run test_new gg new --description "db.go test" db.go
 assert_in_stderr https://gist.github.com/
 
 
