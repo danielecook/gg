@@ -38,7 +38,8 @@ jobs:
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
         export PATH="${PATH}:`pwd`"
-        echo "${PATH}"
+        ls -lah
+        gg new --description "db.go test" db.go
         bash tests/functional-tests.sh
 
     - name: Upload artifact

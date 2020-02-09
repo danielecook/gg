@@ -25,9 +25,6 @@ assert_no_stdout
 run test_login gg sync --token ${TEST_TOKEN}
 assert_in_stderr "ggtest-2"
 
-# Delete leftover gists
-
-gg new --description "db.go test" db.go
 # Create new gist - stdin
 run test_new gg new --description "db.go test" db.go
 assert_in_stderr https://gist.github.com/
