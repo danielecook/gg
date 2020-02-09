@@ -154,11 +154,12 @@ func main() {
 							ThrowError("Cannot use --filename with files", 1)
 						}
 						for _, fname := range c.Args().Slice() {
-							bytes, err := ioutil.ReadFile(fname)
+							content, err := ioutil.ReadFile(fname)
 							if err != nil {
 								ThrowError(fmt.Sprintf("Error reading %s", fname), 1)
 							}
-							fileSet[fname] = string(bytes)
+							fmt.Println(content)
+							fileSet[fname] = string(content)
 						}
 					}
 				}
