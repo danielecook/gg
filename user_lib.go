@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"regexp"
@@ -79,6 +82,14 @@ type Snippet struct {
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
 	URL         string                                  `json:"URL"`
 }
+
+var gistTemplate = []byte(`# Set metadata for the snippet below
+description: {{ .Description }}
+starred: {{ .Starred }}
+public: {{ .Public }}
+---------------------------------------------------
+{{ .Content }}
+`)
 
 // Extract tags from the description
 func parseTags(s string) []string {
@@ -222,6 +233,55 @@ func createGist(fileSet map[string]string, description string, public bool) {
 	dbIdx.Index(gistDbRec.ID, gistDbRec)
 	// Print URL on success
 	errlog.Println(*resultGist.HTMLURL)
+}
+
+func editGist(gistID int) {
+	//client, _ := authenticate("")
+
+	gist := lookupGist(gistID)
+
+	tmpfile, err := ioutil.TempFile("", "gist.*.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	var params = Snippet{
+		Description: gist.Fields["Description"].(string),
+		Starred:     gist.Fields["Starred"].(string),
+		Public:      gist.Fields["Public"].(string),
+		//Content:     "great",
+	}
+
+	t, err := template.New("tname").Parse(string(gistTemplate))
+	check(err)
+	buf := new(bytes.Buffer)
+	t.Execute(buf, params)
+
+	// Write the header of the file
+	err = ioutil.WriteFile(tmpfile.Name(), buf.Bytes(), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var cmd *exec.Cmd
+	var editor = "subl"
+	// editorPath := os.Getenv("EDITOR")
+	if editor == "subl" {
+		cmd = exec.Command("subl", "--wait", fmt.Sprintf("%s", tmpfile.Name()))
+	} else if editor == "nano" {
+		cmd = exec.Command("nano", "-t", tmpfile.Name())
+		cmd.Stdin = os.Stdout
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
+	edit, err := ioutil.ReadFile(tmpfile.Name())
+	fmt.Println(string(edit))
+
 }
 
 func rmGist(gistID int) {

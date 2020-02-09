@@ -196,9 +196,13 @@ func main() {
 		{
 			Name:                   "edit",
 			Usage:                  "Edit a gist using $EDITOR",
+			UsageText:              "\n\t\tgg edit <ID>\n",
 			Category:               "Gists",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
+				if v, err := strconv.Atoi(c.Args().First()); err == nil {
+					editGist(v)
+				}
 				return nil
 			},
 		},
@@ -247,7 +251,7 @@ func main() {
 			Category:               "Query",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
+				if v, err := strconv.Atoi(c.Args().First()); err == nil {
 					if c.Bool("clipboard") {
 						clipboard.WriteAll(fetchGistContent(v))
 						successMsg("Copied to clipboard")
