@@ -43,7 +43,7 @@ jobs:
         ls -lah
         cat test_gist.txt
         chmod 775 test_gist.txt
-        gg new --description "test text"  test_gist.txt
+        gg new test_gist.txt
         bash tests/functional-tests.sh
 
     - name: todo-actions

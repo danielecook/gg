@@ -181,6 +181,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:    "private",
+					Value:   false,
 					Aliases: []string{"p"},
 				},
 				&cli.BoolFlag{
