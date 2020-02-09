@@ -158,7 +158,7 @@ func main() {
 							if err != nil {
 								ThrowError(fmt.Sprintf("Error reading %s", fname), 1)
 							}
-							fmt.Println(content)
+							fmt.Println(fmt.Sprintf("CONTENT: %s", content))
 							fileSet[fname] = string(content)
 						}
 					}
