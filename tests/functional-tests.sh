@@ -3,9 +3,6 @@ test -e ssshtest || wget -q https://raw.githubusercontent.com/ryanlayer/ssshtest
 
 . ssshtest
 
-PARENT_DIR=`git rev-parse --show-toplevel`
-export PATH="${PATH}:${PARENT_DIR}"
-
 set -o nounset
 
 # Main
@@ -24,13 +21,9 @@ assert_no_stdout
 run test_login gg sync --token ${TEST_TOKEN}
 assert_in_stderr "ggtest-2"
 
-ls -lah
-pwd
-echo $HOME
-ls -lah ~/
-
 # Delete leftover gists
 
+gg new --description "db.go test" db.go
 # Create new gist - stdin
 run test_new gg new --description "db.go test" db.go
 assert_in_stderr https://gist.github.com/
