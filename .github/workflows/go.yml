@@ -39,6 +39,7 @@ jobs:
       run: |
         export PATH="${PATH}:`pwd`"
         ls -lah
+        gg sync --token ${TEST_TOKEN}
         gg new --description "db.go test" db.go
         bash tests/functional-tests.sh
 
