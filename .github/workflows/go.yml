@@ -40,10 +40,14 @@ jobs:
         export PATH="${PATH}:`pwd`"
         ls -lah
         gg sync --token ${TEST_TOKEN}
-        cat "test_gist" > test_gist.txt
+        echo "test_gist" > test_gist.txt
         gg new --description "test text"  test_gist.txt
         ls -lah
         bash tests/functional-tests.sh
+
+    - name: shellcheck
+      uses: ludeeus/action-shellcheck@0.1.0
+
 
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
