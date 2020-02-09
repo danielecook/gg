@@ -19,6 +19,7 @@ var errlog = log.New(os.Stderr, "", 0)
 var debug = false
 var greenText = color.New(color.FgGreen).Add(color.Bold)
 var highlightText = color.New(color.FgGreen).Add(color.Bold).Add(color.Underline)
+var boldUnderline = color.New(color.Underline).Add(color.Bold)
 var blueText = color.New(color.FgBlue).Add(color.Bold)
 var squery = searchQuery{}
 
@@ -100,8 +101,26 @@ func main() {
 
 	app := cli.NewApp()
 
+	// TODO: Enable autocomplete
+	//app.EnableBashCompletion = true
+	libsummary := librarySummary()
+
 	app.Name = "gg"
-	app.Usage = "A tool for Github Gists\n\n\t gg <ID> - retrieve gist"
+	app.Usage = "CLI for Github Gists" +
+		"\n\n\t gg <ID> - retrieve gist"
+
+	// Get library stats if main help opening
+	if len(os.Args) <= 2 {
+		config, _ := getConfig()
+		if config.Login != "" {
+			app.Usage +=
+				"\n\nLIBRARY:" +
+					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Login"), config.Login) +
+					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Gists"), libsummary.gists) +
+					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Files"), libsummary.files) +
+					fmt.Sprintf("\n\t %-5s %20v", "⭐:", libsummary.starred)
+		}
+	}
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
 	app.Authors = []*cli.Author{
@@ -134,6 +153,7 @@ func main() {
 				fileSet = make(map[string]string)
 				if c.Bool("clipboard") {
 					/* New from clipboard */
+					debugMsg("Reading from clipboard")
 					content, err := clipboard.ReadAll()
 					if err != nil {
 						ThrowError("Error reading from clipboard", 1)
@@ -141,6 +161,7 @@ func main() {
 					fileSet[c.String("filename")] = content
 				} else if inputPipe() {
 					/* New from stdin */
+					debugMsg("Reading from stdin")
 					bytes, err := ioutil.ReadAll(os.Stdin)
 					if err != nil {
 						ThrowError("Error reading from stdin", 1)
@@ -149,16 +170,17 @@ func main() {
 					fileSet[c.String("filename")] = content
 				} else {
 					/* New from list of files */
+					debugMsg("Reading from files")
 					if c.NArg() > 0 {
 						if c.String("filename") != "" {
 							ThrowError("Cannot use --filename with files", 1)
 						}
 						for _, fname := range c.Args().Slice() {
-							bytes, err := ioutil.ReadFile(fname)
+							content, err := ioutil.ReadFile(fname)
 							if err != nil {
 								ThrowError(fmt.Sprintf("Error reading %s", fname), 1)
 							}
-							fileSet[fname] = string(bytes)
+							fileSet[fname] = string(content)
 						}
 					}
 				}
@@ -181,6 +203,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:    "private",
+					Value:   false,
 					Aliases: []string{"p"},
 				},
 				&cli.BoolFlag{
@@ -192,9 +215,13 @@ func main() {
 		{
 			Name:                   "edit",
 			Usage:                  "Edit a gist using $EDITOR",
+			UsageText:              "\n\t\tgg edit <ID>\n",
 			Category:               "Gists",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
+				if v, err := strconv.Atoi(c.Args().First()); err == nil {
+					editGist(v)
+				}
 				return nil
 			},
 		},
@@ -243,7 +270,7 @@ func main() {
 			Category:               "Query",
 			UseShortOptionHandling: true,
 			Action: func(c *cli.Context) error {
-				if v, err := strconv.Atoi(c.Args().Get(0)); err == nil {
+				if v, err := strconv.Atoi(c.Args().First()); err == nil {
 					if c.Bool("clipboard") {
 						clipboard.WriteAll(fetchGistContent(v))
 						successMsg("Copied to clipboard")
@@ -346,7 +373,7 @@ func main() {
 		{
 			Name:      "tag",
 			Aliases:   []string{"tags"},
-			Usage:     "List or query tag",
+			Usage:     "List and query tag",
 			UsageText: "\n\t\tgg tag [tag name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
@@ -376,7 +403,7 @@ func main() {
 		{
 			Name:      "language",
 			Aliases:   []string{"languages"},
-			Usage:     "List or query language",
+			Usage:     "List and query language",
 			UsageText: "\n\t\tgg language [language-name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
@@ -405,7 +432,7 @@ func main() {
 		},
 		{
 			Name:      "owner",
-			Usage:     "List or query owner",
+			Usage:     "List and query owner",
 			UsageText: "\n\t\tgg owner [owner] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{

@@ -4,10 +4,8 @@ jobs:
 
   build:
     name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-18.04]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     
     steps:
 
@@ -32,19 +30,25 @@ jobs:
       run: |
         go build -v .
         chmod +x gg
-        mkdir bin
-        mv gg bin
+        mkdir pub
+        cp gg pub
 
     - name: Test
       env: 
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
-        export PATH="${PATH}:~/bin"
-        echo ${PATH}
+        export PATH="${PATH}:`pwd`"
+        # Login
+        gg sync --token ${TEST_TOKEN}
+        # Remove old gists
+        gg rm `gg ls | cut -f 1 | tail +3`
         bash tests/functional-tests.sh
+
+    - name: todo-actions
+      uses: dtinth/todo-actions@v0.2.0
 
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: gg
-        path: bin 
+        path: pub 

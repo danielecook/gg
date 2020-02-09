@@ -15,8 +15,9 @@ import (
 )
 
 type libSummary struct {
-	gists uint64
-	files int
+	gists   uint64
+	files   int
+	starred int
 }
 
 type searchQuery struct {
@@ -56,15 +57,20 @@ func librarySummary() libSummary {
 	dc, _ := dbIdx.DocCount()
 	q := query.NewMatchAllQuery()
 	sr := bleve.NewSearchRequest(q)
+	sr.Size = int(dc)
+	sr.Fields = []string{"NFiles", "Starred"}
 	results, err := dbIdx.Search(sr)
 	if err != nil {
-		fmt.Println("No Results")
+		errorMsg("No Results")
 	}
+	boolInt := map[bool]int{false: 0, true: 1}
 	var nfiles int
+	var nstarred int
 	for _, gist := range results.Hits {
-		nfiles += gist.Fields["NFiles"].(int)
+		nfiles += int(gist.Fields["NFiles"].(float64))
+		nstarred += boolInt[gist.Fields["Starred"].(string) == "T"]
 	}
-	return libSummary{gists: dc, files: nfiles}
+	return libSummary{gists: dc, files: nfiles, starred: nstarred}
 }
 
 // ls - the primary query interface
@@ -75,6 +81,7 @@ func ls(search *searchQuery) {
 	if search.term != "" {
 		qstring = fmt.Sprintf("%s", search.term)
 		// TODO: Fix term splitting
+		// TODO: Handle highlighting at field-level when filtering.
 		debugMsg(fmt.Sprint(strings.Split(search.term, " ")))
 		highlightTermSet = append(highlightTermSet, strings.Split(search.term, " ")...)
 		debugMsg(fmt.Sprintf("highlight- %+v", highlightTermSet))
@@ -143,7 +150,7 @@ func ls(search *searchQuery) {
 		errorMsg("No Results\n")
 		os.Exit(0)
 	}
-	resultTable(results.Hits, isQuery, highlightTermSet)
+	resultTable(results, isQuery, highlightTermSet)
 }
 
 // Perform fuzzy search
@@ -158,9 +165,9 @@ func fuzzySearch(searchTerm string) {
 	sr.Fields = []string{"*"}
 	results, err := dbIdx.Search(sr)
 	if err != nil {
-		fmt.Println("No Results")
+		errorMsg("No Results")
 	}
-	resultTable(results.Hits, isQuery, []string{})
+	resultTable(results, isQuery, []string{})
 }
 
 func highlight(out io.Writer, filename string, content string, formatter string, style string) {
