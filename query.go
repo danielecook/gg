@@ -58,7 +58,7 @@ func librarySummary() libSummary {
 	sr := bleve.NewSearchRequest(q)
 	results, err := dbIdx.Search(sr)
 	if err != nil {
-		fmt.Println("No Results")
+		errorMsg("No Results")
 	}
 	var nfiles int
 	for _, gist := range results.Hits {
@@ -158,7 +158,7 @@ func fuzzySearch(searchTerm string) {
 	sr.Fields = []string{"*"}
 	results, err := dbIdx.Search(sr)
 	if err != nil {
-		fmt.Println("No Results")
+		errorMsg("No Results")
 	}
 	resultTable(results.Hits, isQuery, []string{})
 }

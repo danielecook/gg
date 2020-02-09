@@ -4,7 +4,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     
     steps:
@@ -38,18 +38,14 @@ jobs:
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
         export PATH="${PATH}:`pwd`"
+        # Login
         gg sync --token ${TEST_TOKEN}
-        echo "test_gist" > test_gist.txt
-        ls -lah
-        cat test_gist.txt
-        chmod 777 test_gist.txt
-        gg --debug new test_gist.txt
+        # Remove old gists
+        gg rm `gg ls | cut -f 1 | tail +3`
         bash tests/functional-tests.sh
 
     - name: todo-actions
       uses: dtinth/todo-actions@v0.2.0
-
-
 
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0

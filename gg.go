@@ -161,7 +161,6 @@ func main() {
 							if err != nil {
 								ThrowError(fmt.Sprintf("Error reading %s", fname), 1)
 							}
-							fmt.Println(fmt.Sprintf("CONTENT: %s", content))
 							fileSet[fname] = string(content)
 						}
 					}
@@ -169,8 +168,6 @@ func main() {
 				if len(fileSet) == 0 {
 					ThrowError("No content supplied (use --clipboard, stdin, or files)", 1)
 				}
-				fmt.Printf("Input pipe: %v", inputPipe())
-				fmt.Println(c.Args().Slice())
 				createGist(fileSet, c.String("description"), c.Bool("private") == false)
 				return nil
 			},
