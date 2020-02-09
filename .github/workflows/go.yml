@@ -38,6 +38,7 @@ jobs:
       env: 
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
+        export PATH="${PATH}:$(PWD)"
         bash tests/functional-tests.sh
 
     - name: Upload artifact
