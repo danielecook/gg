@@ -4,10 +4,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-18.04]
+    runs-on: ubuntu-18.04
     
     steps:
 
