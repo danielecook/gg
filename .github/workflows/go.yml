@@ -32,15 +32,13 @@ jobs:
         chmod +x gg
         mkdir pub
         cp gg pub
-        export PATH="${PATH}:$(PWD)/pub"
-        echo ${PATH}
 
     - name: Test
       env: 
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
         export PATH="${PATH}:`pwd`"
-        echo ${PATH}
+        echo "${PATH}"
         bash tests/functional-tests.sh
 
 
@@ -51,5 +49,9 @@ jobs:
         name: gg
         path: pub 
 
+  spellcheck:
+    name: spellcheck
+    runs-on: ubuntu-18.04
+    timeout-minutes: 5
     - name: Spellcheck Action
       uses: rojopolis/spellcheck-github-actions@0.2.0
