@@ -30,9 +30,9 @@ assert_in_stderr "ggtest-2"
 run test ls
 assert_in_stdout "db.go"
 
-./gg new --description "db.go test" db.go --filename 'db.go'
+gg new --description "db.go test" db.go --filename 'db.go'
 # Create new gist - stdin
-run test_new gg new --description "db.go test" db.go
+run test_new gg new --description "db.go test" db.go --filename 'db.go'
 assert_in_stderr https://gist.github.com/
 
 
