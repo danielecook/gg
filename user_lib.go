@@ -213,6 +213,8 @@ func createGist(fileSet map[string]string, description string, public bool) {
 	gist.Files = files
 	gist.Public = &public
 
+	fmt.Println("%+v", gist)
+
 	resultGist, _, err := client.Gists.Create(ctx, &gist)
 	if err != nil {
 		ThrowError(fmt.Sprintf("Error: %s", err), 1)
