@@ -33,16 +33,24 @@ jobs:
         mkdir pub
         cp gg pub
         export PATH="${PATH}:$(PWD)/pub"
+        echo ${PATH}
 
     - name: Test
       env: 
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
         export PATH="${PATH}:`pwd`"
+        echo ${PATH}
         bash tests/functional-tests.sh
+
+
 
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: gg
         path: pub 
+
+  spellcheck:
+    - name: Spellcheck Action
+      uses: rojopolis/spellcheck-github-actions@0.2.0
