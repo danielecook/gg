@@ -42,8 +42,8 @@ jobs:
         echo "test_gist" > test_gist.txt
         ls -lah
         cat test_gist.txt
-        chmod 775 db.go
-        gg new db.go
+        chmod 777 test_gist.txt
+        gg new test_gist.txt
         bash tests/functional-tests.sh
 
     - name: todo-actions
