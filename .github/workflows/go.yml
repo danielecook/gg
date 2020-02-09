@@ -40,6 +40,7 @@ jobs:
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
       run: |
         export PATH="${PATH}:~/bin"
+        echo ${PATH}
         bash tests/functional-tests.sh
 
     - name: Upload artifact

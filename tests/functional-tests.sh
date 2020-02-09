@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 test -e ssshtest || wget -q https://raw.githubusercontent.com/ryanlayer/ssshtest/master/ssshtest
 
 . ssshtest
 
 PARENT_DIR=`git rev-parse --show-toplevel`
-export PATH="${PATH}:~/bin:${PARENT_DIR}"
+export PATH="${PATH}:${PARENT_DIR}"
 
 set -o nounset
 
