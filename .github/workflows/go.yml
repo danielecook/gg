@@ -42,6 +42,7 @@ jobs:
         gg sync --token ${TEST_TOKEN}
         cat "test_gist" > test_gist.txt
         gg new --description "test text"  test_gist.txt
+        ls -lah
         bash tests/functional-tests.sh
 
     - name: Upload artifact
