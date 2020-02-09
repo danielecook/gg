@@ -4,16 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"time"
 
@@ -91,35 +90,6 @@ public: {{ .Public }}
 {{ .Content }}
 `)
 
-// Extract tags from the description
-func parseTags(s string) []string {
-	re := regexp.MustCompile(`#([A-Za-z0-9]+)`)
-	r := re.FindAllStringSubmatch(s, -1)
-	var tagSet []string
-	if len(r) > 0 {
-		for _, tags := range r {
-			tagSet = append(tagSet, tags[1])
-		}
-		return tagSet
-	}
-	return []string{}
-}
-
-// Fetch the raw text for a gist
-func fetchContent(url string, ch chan *string) {
-	resp, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	content, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-	var result = string(content)
-	ch <- &result
-}
-
 // Generate list of IDs for gists
 func idMap(gistSet []*github.Gist) map[string]*github.Gist {
 	m := make(map[string]*github.Gist)
@@ -169,30 +139,32 @@ func initializeLibrary(AuthToken string, rebuild bool) bool {
 	return true
 }
 
-func getConfig() configuration {
+func getConfig() (configuration, error) {
 	// Check that config exists
+	var blankConfig configuration
 	if _, err := os.Stat(libConfig); os.IsNotExist(err) {
-		errMsg := "No config found. Run 'gg sync --token <github token>'"
-		ThrowError(errMsg, 1)
+		return blankConfig, errors.New("No config found. Run 'gg sync --token <github token>'")
 	}
 	jsonFile, err := os.Open(libConfig)
 	if err != nil {
-		errMsg := "JSON Parse Error. Run 'gg sync --rebuild'"
-		ThrowError(errMsg, 1)
+		return blankConfig, errors.New("JSON Parse Error. Run 'gg sync --rebuild'")
 	}
 	defer jsonFile.Close()
 
 	configData, _ := ioutil.ReadAll(jsonFile)
 	var config configuration
 	json.Unmarshal(configData, &config)
-	return config
+	return config, nil
 }
 
 // authenticate - Setup user authentication with github token
 func authenticate(authToken string) (*github.Client, string) {
 	var login string
 	if authToken == "" {
-		config := getConfig()
+		config, err := getConfig()
+		if err != nil {
+			ThrowError(err.Error(), 1)
+		}
 		authToken = config.AuthToken
 		login = config.Login
 	}
@@ -218,6 +190,7 @@ func createGist(fileSet map[string]string, description string, public bool) {
 			Content:  &item,
 			Filename: fset,
 		}
+		fmt.Printf("%v == %v", description, len(item))
 	}
 
 	gist.Description = &description

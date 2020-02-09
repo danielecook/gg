@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"regexp"
 )
 
 func check(e error) {
@@ -76,4 +79,33 @@ func ifelse(s bool, t string, f string) string {
 		return t
 	}
 	return f
+}
+
+func parseTags(s string) []string {
+	// Extract tags from string field
+	re := regexp.MustCompile(`#([A-Za-z0-9]+)`)
+	r := re.FindAllStringSubmatch(s, -1)
+	var tagSet []string
+	if len(r) > 0 {
+		for _, tags := range r {
+			tagSet = append(tagSet, tags[1])
+		}
+		return tagSet
+	}
+	return []string{}
+}
+
+func fetchContent(url string, ch chan *string) {
+	// Fetch raw content from a URL
+	resp, err := http.Get(url)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	var result = string(content)
+	ch <- &result
 }

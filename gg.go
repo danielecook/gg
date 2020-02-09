@@ -19,6 +19,7 @@ var errlog = log.New(os.Stderr, "", 0)
 var debug = false
 var greenText = color.New(color.FgGreen).Add(color.Bold)
 var highlightText = color.New(color.FgGreen).Add(color.Bold).Add(color.Underline)
+var boldUnderline = color.New(color.Underline).Add(color.Bold)
 var blueText = color.New(color.FgBlue).Add(color.Bold)
 var squery = searchQuery{}
 
@@ -100,8 +101,26 @@ func main() {
 
 	app := cli.NewApp()
 
+	// TODO: Enable autocomplete
+	//app.EnableBashCompletion = true
+	libsummary := librarySummary()
+
 	app.Name = "gg"
-	app.Usage = "A tool for Github Gists\n\n\t gg <ID> - retrieve gist"
+	app.Usage = "CLI for Github Gists" +
+		"\n\n\t gg <ID> - retrieve gist"
+
+	// Get library stats if main help opening
+	if len(os.Args) <= 2 {
+		config, _ := getConfig()
+		if config.Login != "" {
+			app.Usage +=
+				"\n\nLIBRARY:" +
+					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Login"), config.Login) +
+					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Gists"), libsummary.gists) +
+					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Files"), libsummary.files) +
+					fmt.Sprintf("\n\t %-5s %20v", "⭐:", libsummary.starred)
+		}
+	}
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
 	app.Authors = []*cli.Author{
@@ -354,7 +373,7 @@ func main() {
 		{
 			Name:      "tag",
 			Aliases:   []string{"tags"},
-			Usage:     "List or query tag",
+			Usage:     "List and query tag",
 			UsageText: "\n\t\tgg tag [tag name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
@@ -384,7 +403,7 @@ func main() {
 		{
 			Name:      "language",
 			Aliases:   []string{"languages"},
-			Usage:     "List or query language",
+			Usage:     "List and query language",
 			UsageText: "\n\t\tgg language [language-name] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
@@ -413,7 +432,7 @@ func main() {
 		},
 		{
 			Name:      "owner",
-			Usage:     "List or query owner",
+			Usage:     "List and query owner",
 			UsageText: "\n\t\tgg owner [owner] [query]\n",
 			Category:  "Query",
 			Flags: []cli.Flag{
