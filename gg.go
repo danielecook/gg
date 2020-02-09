@@ -134,6 +134,7 @@ func main() {
 				fileSet = make(map[string]string)
 				if c.Bool("clipboard") {
 					/* New from clipboard */
+					debugMsg("Reading from clipboard")
 					content, err := clipboard.ReadAll()
 					if err != nil {
 						ThrowError("Error reading from clipboard", 1)
@@ -141,6 +142,7 @@ func main() {
 					fileSet[c.String("filename")] = content
 				} else if inputPipe() {
 					/* New from stdin */
+					debugMsg("Reading from stdin")
 					bytes, err := ioutil.ReadAll(os.Stdin)
 					if err != nil {
 						ThrowError("Error reading from stdin", 1)
@@ -149,6 +151,7 @@ func main() {
 					fileSet[c.String("filename")] = content
 				} else {
 					/* New from list of files */
+					debugMsg("Reading from files")
 					if c.NArg() > 0 {
 						if c.String("filename") != "" {
 							ThrowError("Cannot use --filename with files", 1)
@@ -166,7 +169,8 @@ func main() {
 				if len(fileSet) == 0 {
 					ThrowError("No content supplied (use --clipboard, stdin, or files)", 1)
 				}
-				fmt.Println(fileSet)
+				fmt.Printf("Input pipe: %v", inputPipe())
+				fmt.Println(c.Args().Slice())
 				createGist(fileSet, c.String("description"), c.Bool("private") == false)
 				return nil
 			},
