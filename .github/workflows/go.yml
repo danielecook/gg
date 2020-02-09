@@ -40,7 +40,8 @@ jobs:
         export PATH="${PATH}:`pwd`"
         ls -lah
         gg sync --token ${TEST_TOKEN}
-        gg new --description "db.go test" db.go
+        cat "test_gist" > test_gist.txt
+        gg new --description "test text"  test_gist.txt
         bash tests/functional-tests.sh
 
     - name: Upload artifact
