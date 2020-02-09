@@ -65,7 +65,7 @@ func outputPipe() bool {
 /* True if data is coming in from stdin */
 func inputPipe() bool {
 	stat, _ := os.Stdin.Stat()
-	if (stat.Mode()&stat.Size() > 0&os.ModeCharDevice) == 0 {
+	if (stat.Mode()&os.ModeCharDevice) == 0 && stat.Size() > 0 {
 		return true
 	}
 	return false
