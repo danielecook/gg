@@ -8,7 +8,7 @@ A CLI for your [Gists](gist.github.com). It syncs your gists locally, making the
 * Create, edit, and delete gists from the command line
 * Organize gists using tags (`#hashtag` syntax)
 * Full text search
-* Highlighted search results
+* Filter and sort by tag, language, owner, public/private, starred, search term
 * `gg` includes starred gists by other users
 * Summarize gists by tag, language, or owner
 
@@ -63,24 +63,6 @@ gg language # Table languages and count
 
 ![summary output](https://github.com/danielecook/gg/blob/media/summary.png?raw=true)
 
-# Retrieve Gists
-
-```bash
-gg open 5 # Outputs a single gist
-gg o 5 # 'o' is a shortcut for open.
-
-# To be even quicker, gg will open a gist when the first argument is an integer.
-gg 5 # equivelent to `gg o 5` or `gg open 5`
-
-# Output multiple gists
-gg 5 8 22
-
-# You can pipe the contents to be evaluated; They will not be syntax-highlighted
-gg 5 | sh
-```
-
-
-
 # Creating new gists
 
 #### Files
@@ -93,7 +75,7 @@ gg new --description "analysis scripts" analysis.R setup.sh
 
 #### stdin
 
-You can also pipe input into `gg` to create a new gist, and set gists to be private with `--private`.
+You can also pipe input into `gg` to create a new gist, and set gists to `--private`
 
 ```bash
 cat analysis_results.tsv | gg new --description "experiment results" --private
@@ -101,7 +83,7 @@ cat analysis_results.tsv | gg new --description "experiment results" --private
 
 #### Clipboard
 
-You can create a new gist from your clipboard using:
+You can create a new gist from your clipboard
 
 ```bash
 gg new --clipboard --description "A new gist" --filename "analysis.sh"
@@ -109,13 +91,12 @@ gg new --clipboard --description "A new gist" --filename "analysis.sh"
 
 # Remove Gists
 
-Use `gg rm` to delete gists. For example:
+Use `gg rm` to delete gists.
 
-`gg rm 12`
-
-You can also list multiple gists to remove:
-
-`gg rm 12 134 47`
+```bash
+gg rm 12
+gg rm 12 134 47 # Remove multiple gists
+```
 
 # Contributing
 
