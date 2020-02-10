@@ -13,13 +13,14 @@ A CLI for your [Gists](gist.github.com). It syncs your gists locally, making the
 * Summarize gists by tag, language, or owner
 
 <!--# Demo-->
+# Usage
 
-# Getting Started
+## Getting Started
 
 1. [Create a new authentication token](https://github.com/settings/tokens). Under permissions select 'gist'
 2. Run `gg sync --token <authentication_token>`.
 
-# Query Gists
+## Query Gists
 
 `gg ls` will list your gist library in a table. Each gist in your library is assigned an ID which can be used when performing operations such as opening and editing gists.
 
@@ -31,7 +32,7 @@ gg ls FASTQ # Search gists with the word 'FASTQ'
 
 ![Gist List](https://github.com/danielecook/gg/blob/media/gist_list.png?raw=true)
 
-# Retrieve Gists
+## Retrieve Gists
 
 ```bash
 gg open 5 # Outputs a single gist
@@ -49,7 +50,7 @@ gg 5 | sh
 
 ![Gist Retrieval](https://github.com/danielecook/gg/blob/media/syntax.png?raw=true)
 
-# Summarize gists
+## Summarize gists
 
 Gists can be summarized by tag, owner, and language.
 
@@ -63,7 +64,7 @@ gg language # Table languages and count
 
 ![summary output](https://github.com/danielecook/gg/blob/media/summary.png?raw=true)
 
-# Creating new gists
+## Creating new gists
 
 #### Files
 
@@ -89,7 +90,7 @@ You can create a new gist from your clipboard
 gg new --clipboard --description "A new gist" --filename "analysis.sh"
 ```
 
-# Remove Gists
+## Remove Gists
 
 Use `gg rm` to delete gists.
 
