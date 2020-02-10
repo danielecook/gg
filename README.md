@@ -1,80 +1,36 @@
 # gg
 
-A command-line utility for accessing gists. It downloads all of your gists and the gists you have starred and stores them locally for quick access.
+A CLI for your [Gists](gist.github.com). It syncs your gists locally, making them searchable and quickly accessible.
 
-```
-NAME:
-   gg - A tool for Github Gists
+# Features
 
-   gg <ID> - retrieve gist
+* Syntax highlighting in terminal
+* Create, edit, and delete gists from the command line
+* Organize gists using tags (`#hashtag` syntax)
+* Full text search
+* Filter and sort by tag, language, owner, public/private, starred, search term
+* `gg` includes starred gists by other users
+* Summarize gists by tag, language, or owner
 
-USAGE:
-   gg [global options] command [command options] [arguments...]
-
-VERSION:
-   0.0.1
-
-AUTHOR:
-   Daniel Cook <danielecook@gmail.com>
-
-COMMANDS:
-   help, h  Shows a list of commands or help for one command
-
-   Gists:
-     new     Create a new gist
-     edit    Edit a gist using $EDITOR
-     web, w  Open gist in browser
-
-   Library:
-     sync  Login and fetch your gist library
-
-   Query:
-     open, o    Copy or output a single gist
-     rm         Delete gists
-     ls         List, Search and filter
-     search     Use fuzzy search to find Gist
-     tag, tags  List or query tag
-     language   List or query language
-     owner      List or query owner
-
-GLOBAL OPTIONS:
-   --help, -h     show help
-   --version, -v  print the version
-```
+<!--# Demo-->
 
 # Getting Started
 
-Run `gg sync --token <authentication_token>`.
+1. [Create a new authentication token](https://github.com/settings/tokens). Under permissions select 'gist'
+2. Run `gg sync --token <authentication_token>`.
 
 # Query Gists
 
-`gg ls` will list your entire gist library in a table. When doing so you will see that every gist is assigned an index. This index can be used to perform operations such as outputting, opening, editing, and removing gists.
-
-# Creating new gists
-
-#### Files
-
-The following will create a new gist that includes both `analysis.R` and `setup.sh`
+`gg ls` will list your gist library in a table. Each gist in your library is assigned an ID which can be used when performing operations such as opening and editing gists.
 
 ```bash
-gg new --description "analysis scripts" analysis.R setup.sh 
+gg ls --language Shell # Filter gists by language Shell
+gg ls --tag database # Filter gists with the tag 'database'
+gg ls FASTQ # Search gists with the word 'FASTQ'
 ```
 
-#### stdin
+![Gist List](https://github.com/danielecook/gg/blob/media/gist_list.png?raw=true)
 
-You can also pipe input into `gg` to create a new gist, and set gists to be private with `--private`.
-
-```bash
-cat analysis_results.tsv | gg new --description "experiment results" --private
-```
-
-#### Clipboard
-
-You can create a new gist from your clipboard using:
-
-```bash
-gg new --clipboard --description "A new gist" --filename "analysis.sh"
-```
 # Retrieve Gists
 
 ```bash
@@ -91,15 +47,56 @@ gg 5 8 22
 gg 5 | sh
 ```
 
+![Gist Retrieval](https://github.com/danielecook/gg/blob/media/syntax.png?raw=true)
+
+# Summarize gists
+
+Gists can be summarized by tag, owner, and language.
+
+```bash
+gg tags # Summarize by tag
+gg tags fastq # Query gists tagged with 'fastq'
+gg tags fastq elegans # Query gists tagged with 'fastq' and containing the word 'elegans'
+gg owner # List owners and count
+gg language # Table languages and count
+```
+
+![summary output](https://github.com/danielecook/gg/blob/media/summary.png?raw=true)
+
+# Creating new gists
+
+#### Files
+
+The following will create a new gist that includes both `analysis.R` and `setup.sh`
+
+```bash
+gg new --description "analysis scripts" analysis.R setup.sh 
+```
+
+#### stdin
+
+You can also pipe input into `gg` to create a new gist, and set gists to `--private`
+
+```bash
+cat analysis_results.tsv | gg new --description "experiment results" --private
+```
+
+#### Clipboard
+
+You can create a new gist from your clipboard
+
+```bash
+gg new --clipboard --description "A new gist" --filename "analysis.sh"
+```
+
 # Remove Gists
 
-Use `gg rm` to delete gists. For example:
+Use `gg rm` to delete gists.
 
-`gg rm 12`
-
-You can also list multiple gists to remove:
-
-`gg rm 12 134 47`
+```bash
+gg rm 12
+gg rm 12 134 47 # Remove multiple gists
+```
 
 # Contributing
 

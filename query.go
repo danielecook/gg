@@ -137,11 +137,15 @@ func ls(search *searchQuery) {
 	}
 
 	// Handle sorting
-	sortBy := sortMap[search.sort]
-	if sortBy == "" && search.sort[0] == '-' {
-		sortBy = fmt.Sprintf("-%s", sortMap[strings.Trim(search.sort, "-")])
+	if search.sort != "" {
+		sortBy := sortMap[search.sort]
+		if sortBy == "" && search.sort[0] == '-' {
+			sortBy = fmt.Sprintf("-%s", sortMap[strings.Trim(search.sort, "-")])
+		}
+		sr.SortBy([]string{sortBy, "-_score"})
+	} else if isQuery {
+		sr.SortBy([]string{"-_score"})
 	}
-	sr.SortBy([]string{sortBy})
 
 	sr.Fields = []string{"*"}
 
