@@ -33,9 +33,10 @@ func highlightTerms(s string, terms []string) string {
 }
 
 // Generate a result table
-func resultTable(results []*search.DocumentMatch, isQuery bool, highlightTermSet []string) {
-	tableData := make([][]string, len(results))
-	for idx, gist := range results {
+func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []string) {
+
+	tableData := make([][]string, len(results.Hits))
+	for idx, gist := range results.Hits {
 
 		updatedAt := strings.Split(gist.Fields["UpdatedAt"].(string), "T")[0]
 
@@ -94,6 +95,7 @@ func resultTable(results []*search.DocumentMatch, isQuery bool, highlightTermSet
 	//table.SetTablePadding("")
 	table.SetAutoWrapText(false)
 	table.Render()
+	blueText.Printf("Showing %v Hit%s of %v Results\n", len(results.Hits), ifelse(results.Total != 1, "s", ""), results.Total)
 }
 
 /*
