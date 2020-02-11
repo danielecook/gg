@@ -3,13 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/blevesearch/bleve"
-	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
@@ -133,30 +131,6 @@ func fieldSummary(field string) {
 	table.SetColumnSeparator("\t")
 	table.SetCenterSeparator("\t")
 	table.Render()
-}
-
-func parseGistFiles(gist *search.DocumentMatch) map[string]map[string]string {
-	// Parse bleve index which flattens results
-	keys := reflect.ValueOf(gist.Fields).MapKeys()
-	strkeys := make([]string, len(keys))
-	for i := 0; i < len(keys); i++ {
-		strkeys[i] = keys[i].String()
-	}
-	var fsplit []string
-	var fileset = map[string]map[string]string{}
-	for idx := range strkeys {
-		fsplit = strings.Split(strkeys[idx], ".")
-		if fsplit[0] == "Files" {
-			field := fsplit[len(fsplit)-1]
-			filename := strings.Join(fsplit[1:len(fsplit)-1], ".")
-			value := gist.Fields[strkeys[idx]]
-			if fileset[filename] == nil {
-				fileset[filename] = map[string]string{}
-			}
-			fileset[filename][field] = fmt.Sprintf("%v", value)
-		}
-	}
-	return fileset
 }
 
 func outputGist(gistIdx int) {

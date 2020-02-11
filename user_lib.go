@@ -13,9 +13,12 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/blevesearch/bleve/search"
 	"github.com/briandowns/spinner"
 	"github.com/google/go-github/github"
 	"github.com/schollz/progressbar/v2"
@@ -82,12 +85,16 @@ type Snippet struct {
 	URL         string                                  `json:"URL"`
 }
 
-var gistTemplate = []byte(`# Set metadata for the snippet below
-description: {{ .Description }}
-starred: {{ .Starred }}
-public: {{ .Public }}
----------------------------------------------------
-{{ .Content }}
+var gistTemplate = []byte(`# GIST FORM: Edit Metadata below
+# ==============================
+# description: {{ .Description }}
+# starred: {{ .Starred }}
+# public: {{ .Public }}
+# ==============================
+{{- range $elements := .Files }}
+{{ fname_line (Deref $elements.Filename) }}::>>>
+{{ (Deref $elements.Content ) -}}
+{{end}}
 `)
 
 // Generate list of IDs for gists
@@ -212,21 +219,34 @@ func editGist(gistID int) {
 	//client, _ := authenticate("")
 
 	gist := lookupGist(gistID)
-
-	tmpfile, err := ioutil.TempFile("", "gist.*.yaml")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpfile.Name()) // clean up
+	gistFiles := parseGistFilesStruct(gist)
 
 	var params = Snippet{
 		Description: gist.Fields["Description"].(string),
 		Starred:     gist.Fields["Starred"].(string),
 		Public:      gist.Fields["Public"].(string),
-		//Content:     "great",
+		Files:       gistFiles,
 	}
 
-	t, err := template.New("tname").Parse(string(gistTemplate))
+	// Use first filename ext
+	var ext string
+	for _, item := range gistFiles {
+		ext = filepath.Ext(*item.Filename)
+		break
+	}
+
+	tmpfile, err := ioutil.TempFile("", fmt.Sprintf("gist.*.%s", ext))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	t, err := template.New("tname").Funcs(template.FuncMap{
+		"Deref": func(i *string) string { return *i },
+		"fname_line": func(fname string) string {
+			return fmt.Sprintf("%s%s", fname, strings.Repeat("-", (100-len(fname))))
+		},
+	}).Parse(string(gistTemplate))
 	check(err)
 	buf := new(bytes.Buffer)
 	t.Execute(buf, params)
@@ -467,4 +487,46 @@ func libExists() bool {
 		return false
 	}
 	return true
+}
+
+func parseGistFiles(gist *search.DocumentMatch) map[string]map[string]string {
+	// Parse bleve index which flattens results
+	keys := reflect.ValueOf(gist.Fields).MapKeys()
+	strkeys := make([]string, len(keys))
+	for i := 0; i < len(keys); i++ {
+		strkeys[i] = keys[i].String()
+	}
+	var fsplit []string
+	var fileset = map[string]map[string]string{}
+	for idx := range strkeys {
+		fsplit = strings.Split(strkeys[idx], ".")
+		if fsplit[0] == "Files" {
+			field := fsplit[len(fsplit)-1]
+			filename := strings.Join(fsplit[1:len(fsplit)-1], ".")
+			value := gist.Fields[strkeys[idx]]
+			if fileset[filename] == nil {
+				fileset[filename] = map[string]string{}
+			}
+			fileset[filename][field] = fmt.Sprintf("%v", value)
+		}
+	}
+	return fileset
+}
+
+func parseGistFilesStruct(gist *search.DocumentMatch) map[github.GistFilename]github.GistFile {
+	// Converts gistfiles struct for use in Snippet
+	files := parseGistFiles(gist)
+	var result map[github.GistFilename]github.GistFile
+	result = make(map[github.GistFilename]github.GistFile, len(files))
+	for _, item := range files {
+		fmt.Println(item)
+		var content = item["content"]
+		var fname = item["filename"]
+		var fset = github.GistFilename(fname)
+		result[fset] = github.GistFile{
+			Content:  &content,
+			Filename: &fname,
+		}
+	}
+	return result
 }
