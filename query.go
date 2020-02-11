@@ -143,8 +143,10 @@ func ls(search *searchQuery) {
 			sortBy = fmt.Sprintf("-%s", sortMap[strings.Trim(search.sort, "-")])
 		}
 		sr.SortBy([]string{sortBy, "-_score"})
-	} else if isQuery {
+	} else if isQuery == true {
 		sr.SortBy([]string{"-_score"})
+	} else if isQuery == false {
+		sr.SortBy([]string{"-UpdatedAt"})
 	}
 
 	sr.Fields = []string{"*"}

@@ -65,7 +65,7 @@ var starredFlag = cli.BoolFlag{
 
 var sortFlag = cli.StringFlag{
 	Name:  "sort",
-	Value: "-UpdatedAt",
+	Value: "",
 	Usage: "Sort by field",
 }
 
