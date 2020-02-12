@@ -97,6 +97,25 @@ var gistTemplate = []byte(`# GIST FORM: Edit Metadata below
 {{end}}
 `)
 
+func parseGistTemplate(s string) (Snippet, error) {
+	result := strings.Split(s, "\n")
+	for idx, line := range result {
+		if idx <= 6 {
+			switch {
+			case strings.HasPrefix(line, "# description:"):
+				fmt.Println("desc")
+			case strings.HasPrefix(line, "# starred:"):
+				fmt.Println("starred")
+			case strings.HasPrefix(line, "# public:"):
+				fmt.Println("public")
+			case strings.HasSuffix(line, "::>>>"):
+				fmt.Println("filename")
+			}
+		}
+	}
+	return Snippet{}, nil
+}
+
 // Generate list of IDs for gists
 func idMap(gistSet []*github.Gist) map[string]*github.Gist {
 	m := make(map[string]*github.Gist)
@@ -273,7 +292,16 @@ func editGist(gistID int) {
 		log.Fatal(err)
 	}
 	edit, err := ioutil.ReadFile(tmpfile.Name())
-	fmt.Println(string(edit))
+	if err != nil {
+		ThrowError("Error reading output", 1)
+	}
+
+	_, err = parseGistTemplate(string(edit))
+	if err != nil {
+		// Reload template here with comment
+	}
+	//fmt.Println(editSnippet)
+	//fmt.Println(string(edit))
 
 }
 
@@ -519,7 +547,6 @@ func parseGistFilesStruct(gist *search.DocumentMatch) map[github.GistFilename]gi
 	var result map[github.GistFilename]github.GistFile
 	result = make(map[github.GistFilename]github.GistFile, len(files))
 	for _, item := range files {
-		fmt.Println(item)
 		var content = item["content"]
 		var fname = item["filename"]
 		var fset = github.GistFilename(fname)
