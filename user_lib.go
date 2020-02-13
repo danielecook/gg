@@ -54,29 +54,6 @@ func (e gistSort) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
-func parseTrueFalse(s string) string {
-	switch {
-	case strings.ToLower(s) == "t":
-		return "T"
-	case strings.ToLower(s) == "f":
-		return "F"
-	case strings.ToLower(s) == "true":
-		return "T"
-	case strings.ToLower(s) == "false":
-		return "F"
-	}
-	return "Error"
-}
-
-func trueFalse(s bool) string {
-	// Convert true and false to 'T' and 'F' b/c of
-	// bleve search index limitations
-	if s {
-		return "T"
-	}
-	return "F"
-}
-
 // Snippet - Used to store gist data
 type Snippet struct {
 	// The ID is actually the github Node ID which is unique to the given commit
@@ -97,58 +74,6 @@ type Snippet struct {
 	CreatedAt   time.Time                               `json:"CreatedAt"`
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
 	URL         string                                  `json:"URL"`
-}
-
-var gistTemplate = []byte(`# GIST FORM: Edit Metadata below
-# ==============================
-# description: {{ .Description }}
-# starred: {{ .Starred }}
-# public: {{ .Public }}
-# ==============================
-{{- range $elements := .Files }}
-{{ fname_line (Deref $elements.Filename) }}::>>>
-{{ (Deref $elements.Content ) -}}
-{{end}}
-`)
-
-func cleanLine(s string) string {
-	return strings.Trim(strings.Split(s, ":")[1], " ")
-}
-
-func parseGistTemplate(s string) (Snippet, error) {
-	result := strings.Split(s, "\n")
-	var eGist Snippet
-	var filename string
-	var fileContent string
-	//var items map[github.GistFilename]github.GistFile
-	for idx, line := range result {
-		if idx <= 5 {
-			switch {
-			case strings.HasPrefix(line, "# description:"):
-				fmt.Println("desc")
-				eGist.Description = cleanLine(line)
-			case strings.HasPrefix(line, "# starred:"):
-				eGist.Starred = parseTrueFalse(cleanLine(line))
-			case strings.HasPrefix(line, "# public:"):
-				eGist.Public = parseTrueFalse(cleanLine(line))
-			}
-		}
-		if idx > 5 {
-			switch {
-			case strings.HasSuffix(line, "::>>>"):
-				// Initate new file
-				filename = strings.Trim(line[0:len(line)-5], "-")
-			default:
-				fileContent += line + "\n"
-			}
-
-		}
-	}
-	// Store file content here
-	fmt.Println(filename)
-	fmt.Println(fileContent)
-
-	return Snippet{}, nil
 }
 
 // Generate list of IDs for gists

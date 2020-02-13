@@ -329,6 +329,7 @@ func main() {
 		},
 		{
 			Name:                   "ls",
+			Aliases:                []string{"list"},
 			Usage:                  "List, Search and filter",
 			UsageText:              "\n\t\tgg ls [options] [query]\n\n\t\tquery - Searches most fields",
 			Category:               "Query",

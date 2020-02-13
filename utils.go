@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 )
 
 func check(e error) {
@@ -108,4 +109,29 @@ func fetchContent(url string, ch chan *string) {
 	}
 	var result = string(content)
 	ch <- &result
+}
+
+// True / False
+
+func parseTrueFalse(s string) string {
+	switch {
+	case strings.ToLower(s) == "t":
+		return "T"
+	case strings.ToLower(s) == "f":
+		return "F"
+	case strings.ToLower(s) == "true":
+		return "T"
+	case strings.ToLower(s) == "false":
+		return "F"
+	}
+	return "Error"
+}
+
+func trueFalse(s bool) string {
+	// Convert true and false to 'T' and 'F' b/c of
+	// bleve search index limitations
+	if s {
+		return "T"
+	}
+	return "F"
 }
