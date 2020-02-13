@@ -6,6 +6,7 @@ A CLI for your [Gists](gist.github.com). It syncs your gists locally, making the
 
 * Syntax highlighting in terminal
 * Create, edit, and delete gists from the command line
+* Edit gists in a text editor (e.g. sublime)
 * Organize gists using tags (`#hashtag` syntax)
 * Full text search
 * Filter and sort by tag, language, owner, public/private, starred, search term
