@@ -54,6 +54,20 @@ func (e gistSort) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
+func parseTrueFalse(s string) string {
+	switch {
+	case strings.ToLower(s) == "t":
+		return "T"
+	case strings.ToLower(s) == "f":
+		return "F"
+	case strings.ToLower(s) == "true":
+		return "T"
+	case strings.ToLower(s) == "false":
+		return "F"
+	}
+	return "Error"
+}
+
 func trueFalse(s bool) string {
 	// Convert true and false to 'T' and 'F' b/c of
 	// bleve search index limitations
@@ -97,22 +111,43 @@ var gistTemplate = []byte(`# GIST FORM: Edit Metadata below
 {{end}}
 `)
 
+func cleanLine(s string) string {
+	return strings.Trim(strings.Split(s, ":")[1], " ")
+}
+
 func parseGistTemplate(s string) (Snippet, error) {
 	result := strings.Split(s, "\n")
+	var eGist Snippet
+	var filename string
+	var fileContent string
+	//var items map[github.GistFilename]github.GistFile
 	for idx, line := range result {
-		if idx <= 6 {
+		if idx <= 5 {
 			switch {
 			case strings.HasPrefix(line, "# description:"):
 				fmt.Println("desc")
+				eGist.Description = cleanLine(line)
 			case strings.HasPrefix(line, "# starred:"):
-				fmt.Println("starred")
+				eGist.Starred = parseTrueFalse(cleanLine(line))
 			case strings.HasPrefix(line, "# public:"):
-				fmt.Println("public")
-			case strings.HasSuffix(line, "::>>>"):
-				fmt.Println("filename")
+				eGist.Public = parseTrueFalse(cleanLine(line))
 			}
 		}
+		if idx > 5 {
+			switch {
+			case strings.HasSuffix(line, "::>>>"):
+				// Initate new file
+				filename = strings.Trim(line[0:len(line)-5], "-")
+			default:
+				fileContent += line + "\n"
+			}
+
+		}
 	}
+	// Store file content here
+	fmt.Println(filename)
+	fmt.Println(fileContent)
+
 	return Snippet{}, nil
 }
 
