@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/blevesearch/bleve/search"
@@ -176,7 +176,6 @@ func createGist(fileSet map[string]string, description string, public bool) {
 			Content:  &item,
 			Filename: fset,
 		}
-		fmt.Printf("%v == %v", description, len(item))
 	}
 
 	gist.Description = &description
@@ -195,15 +194,16 @@ func createGist(fileSet map[string]string, description string, public bool) {
 }
 
 func editGist(gistID int) {
-	//client, _ := authenticate("")
+	// TODO: Split out template portion/editing for creating new gists...
+	client, _ := authenticate("")
 
-	gist := lookupGist(gistID)
-	gistFiles := parseGistFilesStruct(gist)
+	dbGist := lookupGist(gistID)
+	gistFiles := parseGistFilesStruct(dbGist)
 
 	var params = Snippet{
-		Description: gist.Fields["Description"].(string),
-		Starred:     gist.Fields["Starred"].(string),
-		Public:      gist.Fields["Public"].(string),
+		Description: dbGist.Fields["Description"].(string),
+		Starred:     dbGist.Fields["Starred"].(string),
+		Public:      dbGist.Fields["Public"].(string),
 		Files:       gistFiles,
 	}
 
@@ -256,12 +256,38 @@ func editGist(gistID int) {
 		ThrowError("Error reading output", 1)
 	}
 
-	_, err = parseGistTemplate(string(edit))
+	var starred bool
+	var eGist github.Gist
+	eGist, starred, err = parseGistTemplate(string(edit))
+	fmt.Println(starred)
+	// If filenames were removed from the original, set them to NULL to delete.
+	for fname := range gistFiles {
+		if (eGist.Files[fname] == github.GistFile{}) {
+			var nullFile *string = nil
+			eGist.Files[fname] = github.GistFile{
+				Filename: nullFile,
+			}
+		}
+	}
+
 	if err != nil {
 		// Reload template here with comment
 	}
-	//fmt.Println(editSnippet)
-	//fmt.Println(string(edit))
+
+	greenText.Printf("Saving %v", int(dbGist.Fields["IDX"].(float64)))
+	rGist, response, err := client.Gists.Edit(ctx, dbGist.Fields["GistID"].(string), &eGist)
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		ThrowError(response.String(), 1)
+	}
+
+	// Delete the old record, and insert the new record below.
+	// Retain the same 'IDX' as before.
+	batch := dbIdx.NewBatch()
+	editGistDbRec := gistDbRecord(rGist, int(dbGist.Fields["IDX"].(float64)), []string{})
+	batch.Index(editGistDbRec.ID, editGistDbRec)
+	batch.Delete(dbGist.ID)
+	dbIdx.Batch(batch)
 
 }
 
@@ -297,9 +323,13 @@ func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
 	if _, err := dbIdx.Document(gistRecID); err == nil {
 		for k := range gist.Files {
 			var updated = gist.Files[k]
-			var url = string(*gist.Files[k].RawURL)
-			go fetchContent(url, ch)
-			updated.Content = <-ch
+			// If RawURL is nil, the gist was generated
+			// locally and does not need to be retrieved.
+			if gist.Files[k].RawURL != nil {
+				var url = string(*gist.Files[k].RawURL)
+				go fetchContent(url, ch)
+				updated.Content = <-ch
+			}
 			items[k] = updated
 			if gist.Files[k].Filename != nil {
 				filenames = append(filenames, *gist.Files[k].Filename)

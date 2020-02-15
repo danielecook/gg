@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/google/go-github/github"
@@ -32,24 +31,31 @@ func appendFile(items map[github.GistFilename]github.GistFile, filename string, 
 	}
 }
 
-func parseGistTemplate(s string) (Snippet, error) {
+func parseGistTemplate(s string) (github.Gist, bool, error) {
+	// Parses GistTemplate and returns
+	// a gist object
 	result := strings.Split(s, "\n")
 	nlines := len(result)
-	var eGist Snippet
 	var filename string
 	var fileContent string
+	var description string
+	var starred bool
+	var public bool
+	var err error
 	var items map[github.GistFilename]github.GistFile
 	items = make(map[github.GistFilename]github.GistFile, 1)
 	for idx, line := range result {
 		if idx <= 5 {
 			switch {
 			case strings.HasPrefix(line, "# description:"):
-				fmt.Println("desc")
-				eGist.Description = cleanLine(line)
+				description = cleanLine(line)
 			case strings.HasPrefix(line, "# starred:"):
-				eGist.Starred = parseTrueFalse(cleanLine(line))
+				starred, err = parseTrueFalse(cleanLine(line))
 			case strings.HasPrefix(line, "# public:"):
-				eGist.Public = parseTrueFalse(cleanLine(line))
+				public, err = parseTrueFalse(cleanLine(line))
+			}
+			if err != nil {
+				return github.Gist{}, false, err
 			}
 		}
 		if idx > 5 {
@@ -59,6 +65,7 @@ func parseGistTemplate(s string) (Snippet, error) {
 				appendFile(items, filename, fileContent)
 
 				// Initate new file
+				fileContent = ""
 				filename = strings.Trim(line[0:len(line)-5], "-")
 			default:
 				fileContent += line + "\n"
@@ -69,7 +76,14 @@ func parseGistTemplate(s string) (Snippet, error) {
 		}
 
 	}
-	fmt.Println(items)
 
-	return Snippet{}, nil
+	// Need to handle starring manually
+
+	var resultGist = github.Gist{
+		Description: &description,
+		Public:      &public,
+		Files:       items,
+	}
+
+	return resultGist, starred, nil
 }

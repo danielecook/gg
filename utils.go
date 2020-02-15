@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -113,18 +114,18 @@ func fetchContent(url string, ch chan *string) {
 
 // True / False
 
-func parseTrueFalse(s string) string {
+func parseTrueFalse(s string) (bool, error) {
 	switch {
 	case strings.ToLower(s) == "t":
-		return "T"
+		return true, nil
 	case strings.ToLower(s) == "f":
-		return "F"
+		return false, nil
 	case strings.ToLower(s) == "true":
-		return "T"
+		return true, nil
 	case strings.ToLower(s) == "false":
-		return "F"
+		return false, nil
 	}
-	return "Error"
+	return false, errors.New("Unable to parse")
 }
 
 func trueFalse(s bool) string {
