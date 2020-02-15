@@ -118,7 +118,7 @@ Following the header you will see a special separator line that looks like this:
 myscript.sh----------------------------------------------------------------------------::>>>
 ```
 
-Because gists can have multiple files, they are represented in a single file by breaking them up using a  specialized line. The line **must** begin with the filename, followed by dashes `---`, and finally end with `::>>>`. A gist file with two files looks like this:
+Because gists can have multiple files, they are represented in a single file by breaking them up using a  specialized line. The line **must** begin with the filename, followed by dashes `---`, and finally end with `::>>>`. A gist with two files looks like this:
 
 ```markdown
 # GIST FORM: Edit Metadata below
