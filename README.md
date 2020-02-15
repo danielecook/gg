@@ -91,6 +91,56 @@ You can create a new gist from your clipboard
 gg new --clipboard --description "A new gist" --filename "analysis.sh"
 ```
 
+## Edit Gists
+
+Use `gg edit` to edit gists.
+
+```bash
+gg edit 12 # Open gist in text file for editing.
+```
+
+Editing a gist opens a text document with the following header:
+
+```
+# GIST FORM: Edit Metadata below
+# ==============================
+# description: tmux shortcuts & cheatsheet
+# starred: T
+# public: T
+# ==============================
+```
+
+You can modify the description, starred (T=true; F=false), and public (T=true; F=false) in this header.
+
+Following the header you will see a special separator line that looks like this:
+
+```
+myscript.sh----------------------------------------------------------------------------::>>>
+```
+
+Because gists can have multiple files, they are represented in a single file by breaking them up using a  specialized line. The line **must** begin with the filename, followed by dashes `---`, and finally end with `::>>>`. A gist file with two files looks like this:
+
+```markdown
+# GIST FORM: Edit Metadata below
+# ==============================
+# description: analysis.R
+# starred: T
+# public: T
+# ==============================
+README.md-----------------------------------------------------------------------------::>>>
+I used R to analyze my data!
+
+Check out analysis.R to see how I did it.
+analysis.R----------------------------------------------------------------------------::>>>
+# My R script
+print(1 + 1)
+```
+
+Supported editors:
+
+* Sublime Text (`subl`)
+* Nano
+
 ## Remove Gists
 
 Use `gg rm` to delete gists.
