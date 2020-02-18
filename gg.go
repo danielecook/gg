@@ -187,7 +187,7 @@ func main() {
 				if len(fileSet) == 0 {
 					ThrowError("No content supplied (use --clipboard, stdin, or files)", 1)
 				}
-				createGist(fileSet, c.String("description"), c.Bool("private") == false)
+				newGist(fileSet, c.String("description"), c.Bool("private") == false)
 				return nil
 			},
 			Flags: []cli.Flag{

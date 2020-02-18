@@ -163,7 +163,7 @@ func authenticate(authToken string) (*github.Client, string) {
 	return client, login
 }
 
-func createGist(fileSet map[string]string, description string, public bool) {
+func newGist(fileSet map[string]string, description string, public bool) {
 	client, _ := authenticate("")
 
 	var gist github.Gist
@@ -190,7 +190,7 @@ func createGist(fileSet map[string]string, description string, public bool) {
 	gistDbRec := gistDbRecord(resultGist, nextIdx(), []string{})
 	dbIdx.Index(gistDbRec.ID, gistDbRec)
 	// Print URL on success
-	errlog.Println(*resultGist.HTMLURL)
+	boldUnderline.Println(*resultGist.HTMLURL)
 }
 
 func editGist(gistID int) {
@@ -199,6 +199,8 @@ func editGist(gistID int) {
 
 	dbGist := lookupGist(gistID)
 	gistFiles := parseGistFilesStruct(dbGist)
+
+	dbStarred := dbGist.Fields["Starred"].(string) == "T"
 
 	var params = Snippet{
 		Description: dbGist.Fields["Description"].(string),
@@ -259,7 +261,7 @@ func editGist(gistID int) {
 	var starred bool
 	var eGist github.Gist
 	eGist, starred, err = parseGistTemplate(string(edit))
-	fmt.Println(starred)
+
 	// If filenames were removed from the original, set them to NULL to delete.
 	for fname := range gistFiles {
 		if (eGist.Files[fname] == github.GistFile{}) {
@@ -274,21 +276,36 @@ func editGist(gistID int) {
 		// Reload template here with comment
 	}
 
-	greenText.Printf("Saving %v", int(dbGist.Fields["IDX"].(float64)))
-	rGist, response, err := client.Gists.Edit(ctx, dbGist.Fields["GistID"].(string), &eGist)
+	greenText.Printf("Saving %v [%v]\n", int(dbGist.Fields["IDX"].(float64)), dbGist.Fields["GistID"].(string))
+	resultGist, response, err := client.Gists.Edit(ctx, dbGist.Fields["GistID"].(string), &eGist)
 	if err != nil {
 		fmt.Printf("Error: %v", err)
 		ThrowError(response.String(), 1)
 	}
 
+	// If star status has changed, update
+	var starErr error
+	var starIds []string
+	if dbStarred != starred {
+		if starred {
+			_, starErr = client.Gists.Star(ctx, resultGist.GetID())
+		} else {
+			_, starErr = client.Gists.Unstar(ctx, resultGist.GetID())
+		}
+		if starErr != nil {
+			ThrowError("Error updating star", 1)
+		}
+		starIds = []string{getGistRecID(resultGist)}
+	}
 	// Delete the old record, and insert the new record below.
 	// Retain the same 'IDX' as before.
 	batch := dbIdx.NewBatch()
-	editGistDbRec := gistDbRecord(rGist, int(dbGist.Fields["IDX"].(float64)), []string{})
+	editGistDbRec := gistDbRecord(resultGist, int(dbGist.Fields["IDX"].(float64)), starIds)
 	batch.Index(editGistDbRec.ID, editGistDbRec)
 	batch.Delete(dbGist.ID)
 	dbIdx.Batch(batch)
 
+	boldUnderline.Println(*resultGist.HTMLURL)
 }
 
 func rmGist(gistID int) {

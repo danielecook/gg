@@ -15,8 +15,7 @@ var gistTemplate = []byte(`# GIST FORM: Edit Metadata below
 {{- range $elements := .Files }}
 {{ fname_line (Deref $elements.Filename) }}::>>>
 {{ (Deref $elements.Content ) -}}
-{{end}}
-`)
+{{end}}`)
 
 func cleanLine(s string) string {
 	return strings.Trim(strings.Split(s, ":")[1], " ")
@@ -72,7 +71,7 @@ func parseGistTemplate(s string) (github.Gist, bool, error) {
 			}
 		}
 		if idx == nlines-1 {
-			appendFile(items, filename, fileContent)
+			appendFile(items, filename, strings.TrimSuffix(fileContent, "\n"))
 		}
 
 	}
