@@ -30,8 +30,43 @@ func highlightTerms(s string, terms []string) string {
 	return s
 }
 
+func removeFields(header []string, tableData [][]string, omitFields []string) ([]string, [][]string) {
+	// Removes fields from the header and table
+
+	// Remove fields from header
+	n := 0
+	for _, field := range header {
+		if contains(omitFields, field) == false {
+			header[n] = field
+			n++
+		}
+	}
+	header = header[:n]
+
+	// Remove fields from table
+	for ridx := range tableData {
+		n = 0
+		for idx, field := range header {
+			if contains(omitFields, field) == false {
+				tableData[ridx][n] = tableData[ridx][idx]
+				n++
+			}
+		}
+		tableData[ridx] = tableData[ridx][:n]
+	}
+	return header, tableData
+}
+
 // Generate a result table
 func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []string) {
+
+	/*
+		Format
+	*/
+	// Terminal Window size
+	var xsize, _, _ = terminal.GetSize(0)
+
+	var colWidth int
 
 	tableData := make([][]string, len(results.Hits))
 	for idx, gist := range results.Hits {
@@ -39,6 +74,7 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 		updatedAt := strings.Split(gist.Fields["UpdatedAt"].(string), "T")[0]
 
 		debugMsg(fmt.Sprint(highlightTermSet))
+
 		tableData[idx] = []string{
 			fmt.Sprintf("%v", gist.Fields["IDX"]),
 			ifelse(gist.Fields["Starred"].(string) == "T", "⭐", ""),
@@ -49,10 +85,12 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 			highlightTerms(gist.Fields["Owner"].(string), highlightTermSet),
 			updatedAt,
 		}
+
 		if isQuery {
 			tableData[idx] = append(tableData[idx], fmt.Sprintf("%1.3f", gist.Score))
 		}
 	}
+
 	// Render results
 	table := tablewriter.NewWriter(os.Stdout)
 
@@ -63,6 +101,20 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 	if isQuery {
 		header = append(header, "Score")
 	}
+
+	colWidth = (xsize / len(header))
+
+	var omitFields []string
+	switch {
+	case between(xsize, 100, 125):
+		omitFields = []string{"Updated", "Owner"}
+	case between(xsize, 80, 100):
+		omitFields = []string{"Updated", "Owner", "Language"}
+	}
+	if xsize < 125 {
+		header, tableData = removeFields(header, tableData, omitFields)
+	}
+
 	table.SetAutoFormatHeaders(false)
 	table.SetHeader(header)
 
@@ -75,14 +127,6 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 	table.SetHeaderLine(true)
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 
-	/*
-		Format
-	*/
-	// Terminal Window size
-	var xsize, _, _ = terminal.GetSize(0)
-
-	var colWidth int
-	colWidth = (xsize / len(header))
 	table.SetColWidth(colWidth)
 	table.SetColMinWidth(3, int(float32(colWidth)*2.5))
 	table.SetColumnSeparator("\t")

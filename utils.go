@@ -136,3 +136,10 @@ func trueFalse(s bool) string {
 	}
 	return "F"
 }
+
+func between(x int, a int, b int) bool {
+	if x >= a && x < b {
+		return true
+	}
+	return false
+}
