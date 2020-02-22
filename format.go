@@ -83,6 +83,7 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 			highlightTerms(fmt.Sprintf("%v", gist.Fields["Filename"]), highlightTermSet),
 			highlightTerms(fmt.Sprintf("%v", gist.Fields["Language"]), highlightTermSet),
 			highlightTerms(gist.Fields["Owner"].(string), highlightTermSet),
+			string(fmt.Sprintf("%v", gist.Fields["NLines"].(float64))),
 			updatedAt,
 		}
 
@@ -97,7 +98,7 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 	/*
 		Header
 	*/
-	var header = []string{"ID", "⭐", "🔒", "Description", "Filename", "Language", "Owner", "Updated"}
+	var header = []string{"ID", "⭐", "🔒", "Description", "Filename", "Language", "Owner", "n", "Updated"}
 	if isQuery {
 		header = append(header, "Score")
 	}

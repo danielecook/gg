@@ -69,6 +69,7 @@ type Snippet struct {
 	Starred     string                                  `json:"Starred"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
 	NFiles      int                                     `json:"NFiles"`
+	NLines      int                                     `json:"NLines"`
 	Language    []string                                `json:"Language"`
 	Filename    []string                                `json:"Filename"`
 	Tags        []string                                `json:"Tags"`
@@ -352,6 +353,7 @@ func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
 	// if not, download files.
 	filenames := []string{}
 	languages := []string{}
+	nlines := 0
 	// Check whether document exists
 	if _, err := dbIdx.Document(gistRecID); err == nil {
 		for k := range gist.Files {
@@ -363,6 +365,7 @@ func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
 				go fetchContent(url, ch)
 				updated.Content = <-ch
 			}
+			nlines += len(strings.Split(*updated.Content, "\n"))
 			items[k] = updated
 			if gist.Files[k].Filename != nil {
 				filenames = append(filenames, *gist.Files[k].Filename)
@@ -385,6 +388,7 @@ func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
 		Filename:    filenames,
 		Starred:     trueFalse(contains(starIDs, gistRecID)),
 		NFiles:      len(items),
+		NLines:      nlines,
 		Tags:        tags,
 		Comments:    gist.GetComments(),
 		CreatedAt:   gist.GetCreatedAt(),

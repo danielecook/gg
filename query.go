@@ -51,6 +51,7 @@ var sortMap = map[string]string{
 	"created":     "CreatedAt",
 	"createdat":   "CreatedAt",
 	"updated":     "UpdatedAt",
+	"n":           "NLines",
 }
 
 func librarySummary() libSummary {
