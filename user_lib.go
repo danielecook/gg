@@ -529,6 +529,11 @@ func updateLibrary() {
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)
 
+	// Update date/time of config
+	config, _ := getConfig()
+	config.UpdatedAt = time.Now()
+	saveConfig(config)
+
 	docCount, err := dbIdx.DocCount()
 	fmt.Println()
 	successMsg(fmt.Sprintf("Loaded %v gist%s\n", docCount, ifelse(docCount == 1, "", "s")))
