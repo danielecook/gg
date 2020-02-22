@@ -469,13 +469,14 @@ func updateLibrary() {
 
 	currentGistIds := make([]string, len(allGists))
 	// Not sure if this concurrent method is working in parallel or not...
+	idStart := nextIdx()
 	for i, gist := range allGists {
 		// Store gist in db
 		var gistDbRec Snippet
 		if contains(existingGistIds, getGistRecID(gist)) == false {
 			// Calculate nextIdx so IDs are static unless
 			// a rebuild is performed.
-			gistDbRec = gistDbRecord(gist, nextIdx(), starIDs)
+			gistDbRec = gistDbRecord(gist, idStart+i, starIDs)
 		}
 		currentGistIds[i] = getGistRecID(gist)
 		Library[i] = &gistDbRec

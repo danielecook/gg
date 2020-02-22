@@ -245,7 +245,14 @@ func main() {
 			Action: func(c *cli.Context) error {
 				if c.String("token") != "" || c.Bool("rebuild") {
 					/* gg login */
-					initializeLibrary(c.String("token"), c.Bool("rebuild"))
+					var token string
+					if c.Bool("rebuild") {
+						config, _ := getConfig()
+						token = config.AuthToken
+					} else {
+						token = c.String("token")
+					}
+					initializeLibrary(token, c.Bool("rebuild"))
 				}
 				updateLibrary()
 				return nil
