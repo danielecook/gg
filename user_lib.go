@@ -195,9 +195,14 @@ func newGist(fileSet map[string]string, description string, public bool) {
 
 func editGist(gistID int) {
 	// TODO: Split out template portion/editing for creating new gists...
-	client, _ := authenticate("")
+	client, username := authenticate("")
 
 	dbGist := lookupGist(gistID)
+	// Check that username == user
+	if username != dbGist.Fields["Owner"].(string) {
+		ThrowError("You can't edit another users gists!", 1)
+	}
+
 	gistFiles := parseGistFilesStruct(dbGist)
 
 	dbStarred := dbGist.Fields["Starred"].(string) == "T"

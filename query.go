@@ -153,7 +153,9 @@ func ls(search *searchQuery) {
 
 	results, err := dbIdx.Search(sr)
 	if err != nil || len(results.Hits) == 0 {
-		errorMsg("No Results\n")
+		// If no results, try fuzzy search
+		debugMsg(search.term)
+		fuzzySearch(search.term)
 		os.Exit(0)
 	}
 	resultTable(results, isQuery, highlightTermSet)
@@ -164,6 +166,7 @@ func fuzzySearch(searchTerm string) {
 	var isQuery bool
 	var sr *bleve.SearchRequest
 	q := query.NewFuzzyQuery(searchTerm)
+	q.SetFuzziness(2)
 	sr = bleve.NewSearchRequest(q)
 	sr.Size = 10
 	isQuery = true
@@ -171,7 +174,8 @@ func fuzzySearch(searchTerm string) {
 	sr.Fields = []string{"*"}
 	results, err := dbIdx.Search(sr)
 	if err != nil {
-		errorMsg("No Results")
+		errorMsg("No Results\n")
+		os.Exit(0)
 	}
 	resultTable(results, isQuery, []string{})
 }
