@@ -36,8 +36,10 @@ var libPath = fmt.Sprintf("%s/library.json", getLibraryDirectory())
 var libTagsPath = fmt.Sprintf("%s/tags.json", getLibraryDirectory())
 
 type configuration struct {
-	AuthToken string `json:"token"`
-	Login     string `json:"login"`
+	AuthToken string    `json:"token"`
+	Login     string    `json:"login"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Editor    string    `json:"editor"`
 }
 
 type gistSort []*github.Gist
@@ -115,14 +117,19 @@ func initializeLibrary(AuthToken string, rebuild bool) bool {
 	var config = configuration{
 		AuthToken: string(AuthToken),
 		Login:     string(user.GetLogin()),
+		UpdatedAt: time.Now(),
+		Editor:    "",
 	}
+	saveConfig(config)
+	return true
+}
+
+func saveConfig(config configuration) {
 	_ = os.Mkdir(getLibraryDirectory(), 0755)
 	out, err := json.Marshal(config)
 	check(err)
 	err = ioutil.WriteFile(libConfig, out, 0644)
 	check(err)
-
-	return true
 }
 
 func getConfig() (configuration, error) {
@@ -244,16 +251,20 @@ func editGist(gistID int) {
 	}
 
 	var cmd *exec.Cmd
-	var editor = "subl"
-	// editorPath := os.Getenv("EDITOR")
+	config, _ := getConfig()
+	var editor = config.Editor
 	if editor == "subl" {
 		cmd = exec.Command("subl", "--wait", fmt.Sprintf("%s", tmpfile.Name()))
 	} else if editor == "nano" {
 		cmd = exec.Command("nano", "-t", tmpfile.Name())
-		cmd.Stdin = os.Stdout
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+	} else if editor == "vim" {
+		cmd = exec.Command("vim", tmpfile.Name())
+	} else if editor == "micro" {
+		cmd = exec.Command("micro", tmpfile.Name())
 	}
+	cmd.Stdin = os.Stdout
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)

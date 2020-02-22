@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/atotto/clipboard"
 	"github.com/blevesearch/bleve/search"
 	"github.com/fatih/color"
@@ -116,9 +117,12 @@ func main() {
 			app.Usage +=
 				"\n\nLIBRARY:" +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Login"), config.Login) +
+					fmt.Sprintf("\n\t %-5s %20v", boldUnderline.Sprintf("Editor"), config.Editor) +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Gists"), libsummary.gists) +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Files"), libsummary.files) +
-					fmt.Sprintf("\n\t %-5s %20v", "⭐:", libsummary.starred)
+					fmt.Sprintf("\n\t %-5s %20v", "⭐:", libsummary.starred) +
+					"\n\nLast Update:" +
+					fmt.Sprintf("\n\t %27v", config.UpdatedAt.Format("2006-01-02 15:04:05"))
 		}
 	}
 	app.Version = "0.0.1"
@@ -229,7 +233,7 @@ func main() {
 			Name:      "sync",
 			Usage:     "Login and fetch your gist library",
 			UsageText: "\n\t\tgg sync [Authentication Token]\n",
-			Category:  "Library",
+			Category:  "Config",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "token",
@@ -259,10 +263,31 @@ func main() {
 			},
 		},
 		{
+			Name:                   "set-editor",
+			Usage:                  "Set $EDITOR",
+			UsageText:              "\n\t\tgg set-editor <ID>\n",
+			Category:               "Config",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
+				config, _ := getConfig()
+				answers := struct {
+					Editor string `survey:"color"` // or you can tag fields to match a specific name
+				}{}
+				err := survey.Ask(editorSurvey, &answers)
+				if err != nil {
+					ThrowError("Invalid response", 1)
+				}
+				config.Editor = answers.Editor
+				saveConfig(config)
+				successMsg(fmt.Sprintf("Editor set to %v\n", answers.Editor))
+				return nil
+			},
+		},
+		{
 			Name:      "logout",
 			Usage:     "Logout",
 			UsageText: "\n\t\tgg logout\n",
-			Category:  "Library",
+			Category:  "Config",
 			Action: func(c *cli.Context) error {
 				deleteLibrary()
 				successMsg("Successfully Logged out\n")

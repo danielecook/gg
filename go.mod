@@ -3,6 +3,7 @@ module github.com/danielecook/gg
 go 1.12
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.0.5
 	github.com/RoaringBitmap/roaring v0.4.21 // indirect
 	github.com/alecthomas/chroma v0.7.1
 	github.com/atotto/clipboard v0.1.2
