@@ -201,6 +201,56 @@ func newGist(fileSet map[string]string, description string, public bool) {
 	boldUnderline.Println(*resultGist.HTMLURL)
 }
 
+func runGistEdit(params Snippet) {
+	// Opens template and allows user to edit; and validates.
+	gistFiles := params.Files
+	// Use first filename ext
+	var ext string
+	for _, item := range gistFiles {
+		ext = filepath.Ext(*item.Filename)
+		break
+	}
+
+	tmpfile, err := ioutil.TempFile("", fmt.Sprintf("gist.*.%s", ext))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	t, err := template.New("tname").Funcs(template.FuncMap{
+		"Deref": func(i *string) string { return *i },
+		"fname_line": func(fname string) string {
+			return fmt.Sprintf("%s%s", fname, strings.Repeat("-", (100-len(fname))))
+		},
+	}).Parse(string(gistTemplate))
+	check(err)
+	buf := new(bytes.Buffer)
+	t.Execute(buf, params)
+
+	// Write the header of the file
+	err = ioutil.WriteFile(tmpfile.Name(), buf.Bytes(), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var cmd *exec.Cmd
+	config, _ := getConfig()
+	var editor = config.Editor
+	if editor == "subl" {
+		cmd = exec.Command("subl", "--wait", fmt.Sprintf("%s", tmpfile.Name()))
+	} else if editor == "nano" {
+		cmd = exec.Command("nano", "-t", tmpfile.Name())
+	} else if editor == "vim" {
+		cmd = exec.Command("vim", tmpfile.Name())
+	} else if editor == "micro" {
+		cmd = exec.Command("micro", tmpfile.Name())
+	}
+	cmd.Stdin = os.Stdout
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+}
+
 func editGist(gistID int) {
 	// TODO: Split out template portion/editing for creating new gists...
 	client, username := authenticate("")

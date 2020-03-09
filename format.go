@@ -9,6 +9,7 @@ import (
 
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search/query"
+	aw "github.com/deanishe/awgo"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -144,23 +145,7 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 /*
 	Summarize a field
 */
-func fieldSummary(field string) {
-	// Calculates frequencies for a given field
-	facet := bleve.NewFacetRequest(field, 100000)
-	query := query.NewMatchAllQuery()
-	searchRequest := bleve.NewSearchRequest(query)
-	searchRequest.AddFacet("count", facet)
-	searchResults, err := dbIdx.Search(searchRequest)
-	if err != nil {
-		panic(err)
-	}
-
-	// term with highest occurrences in field name
-	data := make([][]string, searchResults.Size())
-	for idx, val := range searchResults.Facets["count"].Terms {
-		data[idx] = []string{val.Term, strconv.Itoa(val.Count)}
-	}
-
+func fieldSummaryTable(field string, data [][]string) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoFormatHeaders(false)
 	table.SetHeader([]string{field, "Count"})
@@ -176,6 +161,53 @@ func fieldSummary(field string) {
 	table.SetColumnSeparator("\t")
 	table.SetCenterSeparator("\t")
 	table.Render()
+}
+
+func fieldSummaryAlfred(field string, data [][]string) {
+	var qPrefix string
+	var tagFmt string
+	var icon *aw.Icon
+	for _, row := range data {
+		switch {
+		case field == "Tags":
+			qPrefix = "#"
+			icon = tagIcon
+		case field == "Language":
+			qPrefix = "~"
+			icon = languageIcon
+		}
+		tagFmt = fmt.Sprintf(qPrefix, row[0])
+		if strings.HasPrefix(tagFmt, alfredQuery) {
+			wf.NewItem(fmt.Sprintf("%s%v", qPrefix, row[0])).
+				Icon(icon).
+				Autocomplete(fmt.Sprintf("%s%v", qPrefix, row[0])).
+				Subtitle(fmt.Sprintf("%v gists", row[1]))
+		}
+	}
+
+}
+
+func fieldSummary(field string) {
+	// Calculates frequencies for a given field
+	facet := bleve.NewFacetRequest(field, 100000)
+	query := query.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(query)
+	searchRequest.AddFacet("count", facet)
+	searchResults, err := dbIdx.Search(searchRequest)
+	if err != nil {
+		panic(err)
+	}
+
+	// term with highest occurrences in field name
+	data := make([][]string, searchResults.Facets["count"].Terms.Len())
+	for idx, val := range searchResults.Facets["count"].Terms {
+		data[idx] = []string{val.Term, strconv.Itoa(val.Count)}
+	}
+	if outputFormat == "console" {
+		fieldSummaryTable(field, data)
+	} else if outputFormat == "alfred" {
+		fieldSummaryAlfred(field, data)
+	}
 }
 
 func outputGist(gistIdx int) {

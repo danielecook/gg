@@ -13,6 +13,7 @@ require (
 	github.com/briandowns/spinner v1.8.0
 	github.com/cosiner/argv v0.0.1 // indirect
 	github.com/couchbase/vellum v0.0.0-20190829182332-ef2e028c01fd // indirect
+	github.com/deanishe/awgo v0.22.1
 	github.com/etcd-io/bbolt v1.3.3 // indirect
 	github.com/fatih/color v1.7.0
 	github.com/go-delve/delve v1.4.0 // indirect

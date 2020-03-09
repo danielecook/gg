@@ -23,6 +23,7 @@ var highlightText = color.New(color.FgGreen).Add(color.Bold).Add(color.Underline
 var boldUnderline = color.New(color.Underline).Add(color.Bold)
 var blueText = color.New(color.FgBlue).Add(color.Bold)
 var squery = searchQuery{}
+var outputFormat = "console"
 
 func successMsg(s string) {
 	c := greenText.FprintFunc()
@@ -120,6 +121,8 @@ func main() {
 					fmt.Sprintf("\n\t %-5s %20v", boldUnderline.Sprintf("Editor"), config.Editor) +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Gists"), libsummary.gists) +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Files"), libsummary.files) +
+					fmt.Sprintf("\n\t %-5s: %21d", boldUnderline.Sprintf("Tags"), libsummary.tags) +
+					fmt.Sprintf("\n\t %-5s: %16d", boldUnderline.Sprintf("Languages"), libsummary.languages) +
 					fmt.Sprintf("\n\t %-5s %20v", "⭐:", libsummary.starred) +
 					"\n\nLast Update:" +
 					fmt.Sprintf("\n\t %27v", config.UpdatedAt.Format("2006-01-02 15:04:05"))
@@ -147,6 +150,14 @@ func main() {
 		return nil
 	}
 	app.Commands = []*cli.Command{
+		{
+			Name:   "__run_alfred",
+			Hidden: true,
+			Action: func(c *cli.Context) error {
+				runAlfred()
+				return nil
+			},
+		},
 		{
 			Name:                   "new",
 			Usage:                  "Create a new gist",

@@ -15,9 +15,12 @@ import (
 )
 
 type libSummary struct {
-	gists   uint64
-	files   int
-	starred int
+	gists     uint64
+	files     int
+	starred   int
+	tags      int
+	languages int
+	owners    int
 }
 
 type searchQuery struct {
@@ -54,12 +57,23 @@ var sortMap = map[string]string{
 	"n":           "NLines",
 }
 
+func uniqueAttributes(gist *search.DocumentMatch, field string, counter map[string]bool) {
+	switch val := gist.Fields[field].(type) {
+	case string:
+		counter[val] = true
+	case []interface{}:
+		for _, s := range val {
+			counter[s.(string)] = true
+		}
+	}
+}
+
 func librarySummary() libSummary {
 	dc, _ := dbIdx.DocCount()
 	q := query.NewMatchAllQuery()
 	sr := bleve.NewSearchRequest(q)
 	sr.Size = int(dc)
-	sr.Fields = []string{"NFiles", "Starred"}
+	sr.Fields = []string{"NFiles", "Starred", "Tags", "Language", "Owner"}
 	results, err := dbIdx.Search(sr)
 	if err != nil {
 		errorMsg("No Results")
@@ -67,11 +81,19 @@ func librarySummary() libSummary {
 	boolInt := map[bool]int{false: 0, true: 1}
 	var nfiles int
 	var nstarred int
+	ntags := map[string]bool{}
+	nlanguage := map[string]bool{}
+	nowners := map[string]bool{}
+	//var nLanguage map[string]bool
+	//var nOwners map[string]bool
 	for _, gist := range results.Hits {
 		nfiles += int(gist.Fields["NFiles"].(float64))
 		nstarred += boolInt[gist.Fields["Starred"].(string) == "T"]
+		uniqueAttributes(gist, "Language", nlanguage)
+		uniqueAttributes(gist, "Tags", ntags)
+		uniqueAttributes(gist, "Owner", nowners)
 	}
-	return libSummary{gists: dc, files: nfiles, starred: nstarred}
+	return libSummary{gists: dc, files: nfiles, starred: nstarred, tags: len(ntags), languages: len(nlanguage), owners: len(nowners)}
 }
 
 // ls - the primary query interface
