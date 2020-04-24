@@ -178,9 +178,9 @@ func fieldSummaryAlfred(field string, data [][]string) {
 			qPrefix = "~"
 			icon = resolveIcon(row[0])
 		}
-		tagFmt = fmt.Sprintf(qPrefix, row[0])
+		tagFmt = qPrefix + row[0]
 		if strings.HasPrefix(tagFmt, alfredQuery) {
-			wf.NewItem(fmt.Sprintf("%s%v", qPrefix, row[0])).
+			wf.NewItem(fmt.Sprintf("%s%v", qPrefix, strings.ToLower(row[0]))).
 				Icon(icon).
 				Autocomplete(fmt.Sprintf("%s%v", qPrefix, row[0])).
 				Subtitle(fmt.Sprintf("%v gists", row[1]))

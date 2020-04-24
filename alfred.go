@@ -66,7 +66,7 @@ func run() {
 
 		}
 
-		wf.NewItem(argSet)
+		//wf.NewItem(argSet)
 	}
 	// Send results to Alfred
 	wf.SendFeedback()
