@@ -80,7 +80,7 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 			fmt.Sprintf("%v", gist.Fields["IDX"]),
 			ifelse(gist.Fields["Starred"].(string) == "T", "⭐", ""),
 			ifelse(gist.Fields["Public"].(string) == "F", "🔒", ""),
-			highlightTerms(gist.Fields["Description"].(string), highlightTermSet),
+			highlightTerms(fmt.Sprintf("%.60v", gist.Fields["Description"].(string)), highlightTermSet),
 			highlightTerms(fmt.Sprintf("%v", gist.Fields["Filename"]), highlightTermSet),
 			highlightTerms(fmt.Sprintf("%v", gist.Fields["Language"]), highlightTermSet),
 			highlightTerms(gist.Fields["Owner"].(string), highlightTermSet),
@@ -95,6 +95,8 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 
 	// Render results
 	table := tablewriter.NewWriter(os.Stdout)
+
+	table.SetAutoWrapText(false)
 
 	/*
 		Header
