@@ -176,7 +176,7 @@ func fieldSummaryAlfred(field string, data [][]string) {
 			icon = tagIcon
 		case field == "Language":
 			qPrefix = "~"
-			icon = languageIcon
+			icon = resolveIcon(row[0])
 		}
 		tagFmt = fmt.Sprintf(qPrefix, row[0])
 		if strings.HasPrefix(tagFmt, alfredQuery) {
