@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -178,15 +179,53 @@ func fieldSummaryAlfred(field string, data [][]string) {
 			qPrefix = "~"
 			icon = resolveIcon(row[0])
 		}
-		tagFmt = qPrefix + row[0]
-		if strings.HasPrefix(tagFmt, alfredQuery) {
-			wf.NewItem(fmt.Sprintf("%s%v", qPrefix, strings.ToLower(row[0]))).
+		tagFmt = qPrefix + strings.ToLower(row[0])
+		var subQuery = strings.SplitAfter(alfredQuery, " ")
+		// Need to split this logic out for other args...
+		var prefixMatch = strings.HasPrefix(tagFmt, strings.ToLower(alfredQuery)) || (tagFmt == strings.Trim(subQuery[0], " "))
+		var isMatched = (alfredQuery[len(alfredQuery)-1] == ' ') || (len(subQuery) > 1)
+		if (prefixMatch == true) && (isMatched == false) {
+			wf.NewItem(fmt.Sprintf("%s%v", qPrefix, row[0])).
 				Icon(icon).
-				Autocomplete(fmt.Sprintf("%s%v", qPrefix, row[0])).
+				Autocomplete(fmt.Sprintf("%s%v ", qPrefix, row[0])).
 				Subtitle(fmt.Sprintf("%v gists", row[1]))
+		} else if (prefixMatch == true) && (isMatched == true) {
+			// Query for results
+			//squery.term = strings.Trim(searchTerm, " ")
+			log.Println(subQuery[1])
+			squery.term = subQuery[1] // if empty (""); term does nothing
+			squery.status = "all"
+			squery.limit = 50
+			if qPrefix == "#" {
+				squery.tag = row[0]
+			} else if qPrefix == "~" {
+				squery.language = row[0]
+			}
+
+			ls(&squery) // invokes resultListAlfred
 		}
 	}
 
+}
+
+func resultListAlfred(results *bleve.SearchResult) {
+	//
+	/*
+
+		tableData[idx] = []string{
+			fmt.Sprintf("%v", gist.Fields["IDX"]),
+			ifelse(gist.Fields["Starred"].(string) == "T", "⭐", ""),
+			ifelse(gist.Fields["Public"].(string) == "F", "🔒", ""),
+			highlightTerms(fmt.Sprintf("%.60v", gist.Fields["Description"].(string)), highlightTermSet),
+			highlightTerms(fmt.Sprintf("%v", gist.Fields["Filename"]), highlightTermSet),
+			highlightTerms(fmt.Sprintf("%v", gist.Fields["Language"]), highlightTermSet),
+			highlightTerms(gist.Fields["Owner"].(string), highlightTermSet),
+			string(fmt.Sprintf("%v", gist.Fields["NLines"].(float64))),
+			updatedAt,
+	*/
+	for _, row := range results.Hits {
+		wf.NewItem(row.Fields["Description"].(string))
+	}
 }
 
 func fieldSummary(field string) {

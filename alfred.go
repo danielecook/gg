@@ -3,26 +3,29 @@ package main
 // Package is called aw
 import (
 	"fmt"
-	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	aw "github.com/deanishe/awgo"
 )
 
 // Workflow is the main API
-var alfredQuery string
-var _ = os.Setenv("alfred_workflow_bundleid", "1")
-var _ = os.Setenv("alfred_workflow_cache", "1")
-var _ = os.Setenv("alfred_workflow_data", "1")
-
-var wf *aw.Workflow
+var (
+	alfredQuery string
+	_           = os.Setenv("alfred_workflow_bundleid", "1")
+	_           = os.Setenv("alfred_workflow_cache", "1")
+	_           = os.Setenv("alfred_workflow_data", "1")
+	wf          *aw.Workflow
+	maxResults  = 100
+)
 
 func init() {
 	// Create a new Workflow using default settings.
 	// Critical settings are provided by Alfred via environment variables,
 	// so this *will* die in flames if not run in an Alfred-like environment.
-	wf = aw.New()
+	wf = aw.New(aw.HelpURL("http://www.github.com/danielecook/gg"),
+		aw.MaxResults(maxResults))
 }
 
 // Your workflow starts here
@@ -31,9 +34,13 @@ func run() {
 	libsummary := librarySummary()
 
 	args := wf.Args()
-	argSet := strings.TrimSpace(strings.Join(args[1:], ""))
+	argSet := strings.Join(args[1:], "")
+
+	// Run sync operation in the background
+	wf.RunInBackground("sync", exec.Command("gg", "sync"))
+
 	if len(args) > 0 {
-		alfredQuery = strings.TrimSpace(strings.Join(args[1:], ""))
+		alfredQuery = strings.Join(args[1:], "")
 	}
 	if len(argSet) == 0 {
 		wf.NewItem("Tags").
@@ -56,14 +63,11 @@ func run() {
 		wf.NewItem("set-editor")
 		wf.NewItem("login")
 	} else {
-		log.Println(alfredQuery)
-		log.Println(strings.HasPrefix(alfredQuery, "#"))
 		switch {
 		case strings.HasPrefix(alfredQuery, "#"):
 			fieldSummary("Tags")
 		case strings.HasPrefix(alfredQuery, "~"):
 			fieldSummary("Language")
-
 		}
 
 		//wf.NewItem(argSet)

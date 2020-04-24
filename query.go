@@ -173,7 +173,6 @@ func ls(search *searchQuery) {
 	}
 
 	sr.Fields = []string{"*"}
-
 	results, err := dbIdx.Search(sr)
 	if err != nil || len(results.Hits) == 0 {
 		// If no results, try fuzzy search
@@ -181,7 +180,12 @@ func ls(search *searchQuery) {
 		fuzzySearch(search.term)
 		os.Exit(0)
 	}
-	resultTable(results, isQuery, highlightTermSet)
+
+	if outputFormat == "console" {
+		resultTable(results, isQuery, highlightTermSet)
+	} else if outputFormat == "alfred" {
+		resultListAlfred(results)
+	}
 }
 
 // Perform fuzzy search
