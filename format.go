@@ -164,6 +164,21 @@ func fieldSummaryTable(field string, data [][]string) {
 	table.Render()
 }
 
+func queryGistsAlfred(alfredQuery string) {
+	switch {
+	case strings.HasPrefix(alfredQuery, "⭐"):
+		// if len(c.Args().Slice()) > 0 {
+		// 	searchTerm = strings.Join(c.Args().Slice(), " ")
+		// }
+		//squery.term = strings.Trim(searchTerm, " ")
+		squery.starred = true
+		squery.limit = 100
+		squery.status = "all"
+	}
+	log.Println(squery)
+	ls(&squery)
+}
+
 func fieldSummaryAlfred(field string, data [][]string) {
 	var qPrefix string
 	var tagFmt string
@@ -213,7 +228,6 @@ func fieldSummaryAlfred(field string, data [][]string) {
 			ls(&squery) // invokes resultListAlfred
 		}
 	}
-
 }
 
 func resultListAlfred(results *bleve.SearchResult) {

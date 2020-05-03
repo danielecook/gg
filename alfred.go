@@ -56,9 +56,12 @@ func run() {
 		wf.NewItem("Starred").
 			Icon(starIcon).
 			Autocomplete("⭐").
-			Subtitle(fmt.Sprintf("%v Languages", libsummary.languages))
+			Subtitle(fmt.Sprintf("%v Starred", libsummary.starred))
 
-		wf.NewItem("owner")
+		wf.NewItem("owner").
+			Icon(starIcon).
+			Autocomplete("😃").
+			Subtitle(fmt.Sprintf("%v Owners", libsummary.owners))
 		wf.NewItem("sync")
 		wf.NewItem("set-editor")
 		wf.NewItem("login")
@@ -68,6 +71,10 @@ func run() {
 			fieldSummary("Tags")
 		case strings.HasPrefix(alfredQuery, "~"):
 			fieldSummary("Language")
+		case strings.HasPrefix(alfredQuery, "😃"):
+			fieldSummary("Owner")
+		default:
+			queryGistsAlfred(alfredQuery)
 		}
 
 		//wf.NewItem(argSet)
