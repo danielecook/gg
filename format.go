@@ -193,8 +193,8 @@ func fieldSummaryAlfred(field string, data [][]string) {
 			qPrefix = "~"
 			icon = resolveIcon(row[0])
 		case field == "Owner":
-			qPrefix = "😃"
-			//icon = resolveIcon(row[0])
+			qPrefix = ":"
+			icon = randomOwnerIcon()
 		}
 		tagFmt = qPrefix + strings.ToLower(row[0])
 		var subQuery = strings.SplitAfter(alfredQuery, " ")
@@ -215,7 +215,7 @@ func fieldSummaryAlfred(field string, data [][]string) {
 				squery.tag = row[0]
 			} else if qPrefix == "~" {
 				squery.language = row[0]
-			} else if qPrefix == "😃" {
+			} else if qPrefix == ":" {
 				squery.starred = true
 			}
 
@@ -267,17 +267,24 @@ func resultListAlfred(results *bleve.SearchResult) {
 		subtitleText := fmt.Sprintf("%s%s%s", statusText, filenameText, gistText)
 
 		icon := resolveIcon(gist.Fields["Language"])
-		wf.NewItem(gist.Fields["Description"].(string)).
+		it := wf.NewItem(gist.Fields["Description"].(string)).
 			Icon(icon).
+			Quicklook(gist.Fields["URL"].(string)).
 			Copytext(gistText).
 			Subtitle(subtitleText).
 			Arg(gistText).
 			Var("title", fmt.Sprintf("'%s'", gist.Fields["Description"].(string))).
 			UID(gist.Fields["ID"].(string)).
-			Valid(true).
-			Cmd().
+			Valid(true)
+
+		it.Cmd().
 			Subtitle("Open Gist in browser").
 			Arg(gist.Fields["URL"].(string)).
+			Valid(true)
+
+		it.Opt().
+			Subtitle("Edit locally").
+			Arg(fmt.Sprintf("%v", int(gist.Fields["IDX"].(float64)))).
 			Valid(true)
 
 	}

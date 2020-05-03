@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,8 +23,21 @@ var (
 	iconAvailable  = &aw.Icon{"icons/update-available.png", aw.IconTypeImage}
 )
 
+func randomOwnerIcon() *aw.Icon {
+	iconDir, err := os.Open("./icons/owners")
+	if err != nil {
+		log.Fatalf("failed opening directory: %s", err)
+	}
+	iconFile, err := iconDir.Readdirnames(0)
+	n := rand.Intn(len(iconFile))
+	return &aw.Icon{
+		Type:  aw.IconTypeImage,
+		Value: fmt.Sprintf("./icons/owners/%s", iconFile[n]),
+	}
+}
+
 func loadIcons() map[string]string {
-	iconDir, err := os.Open("./icons/")
+	iconDir, err := os.Open("./icons")
 	if err != nil {
 		log.Fatalf("failed opening directory: %s", err)
 	}
