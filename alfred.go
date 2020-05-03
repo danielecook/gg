@@ -18,6 +18,7 @@ var (
 	_           = os.Setenv("alfred_workflow_data", "1")
 	wf          *aw.Workflow
 	maxResults  = 100
+	iconSet     map[string]string
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 func run() {
 
 	libsummary := librarySummary()
+	iconSet = loadIcons()
 
 	args := wf.Args()
 	argSet := strings.Join(args[1:], "")

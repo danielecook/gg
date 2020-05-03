@@ -166,6 +166,7 @@ func fieldSummaryTable(field string, data [][]string) {
 
 func queryGistsAlfred(alfredQuery string) {
 	switch {
+	// Starred gists
 	case strings.HasPrefix(alfredQuery, "⭐"):
 		// if len(c.Args().Slice()) > 0 {
 		// 	searchTerm = strings.Join(c.Args().Slice(), " ")
@@ -191,9 +192,6 @@ func fieldSummaryAlfred(field string, data [][]string) {
 		case field == "Language":
 			qPrefix = "~"
 			icon = resolveIcon(row[0])
-		case field == "Starred":
-			qPrefix = "⭐"
-			//icon = resolveIcon(row[0])
 		case field == "Owner":
 			qPrefix = "😃"
 			//icon = resolveIcon(row[0])
@@ -210,8 +208,6 @@ func fieldSummaryAlfred(field string, data [][]string) {
 				Subtitle(fmt.Sprintf("%v gists", row[1]))
 		} else if (prefixMatch == true) && (isMatched == true) {
 			// Query for results
-			//squery.term = strings.Trim(searchTerm, " ")
-			log.Println(subQuery[1])
 			squery.term = subQuery[1] // if empty (""); term does nothing
 			squery.status = "all"
 			squery.limit = 50
@@ -219,8 +215,6 @@ func fieldSummaryAlfred(field string, data [][]string) {
 				squery.tag = row[0]
 			} else if qPrefix == "~" {
 				squery.language = row[0]
-			} else if qPrefix == "⭐" {
-				squery.starred = true
 			} else if qPrefix == "😃" {
 				squery.starred = true
 			}
@@ -245,8 +239,47 @@ func resultListAlfred(results *bleve.SearchResult) {
 			string(fmt.Sprintf("%v", gist.Fields["NLines"].(float64))),
 			updatedAt,
 	*/
-	for _, row := range results.Hits {
-		wf.NewItem(row.Fields["Description"].(string))
+	for _, gist := range results.Hits {
+
+		// Get Private and Starred States
+		isStarred := ifelse(gist.Fields["Starred"].(string) == "T", "⭐", "")
+		isPrivate := ifelse(gist.Fields["Public"].(string) == "F", "🔒", "")
+
+		statusText := ""
+		if len(isStarred) > 0 || len(isPrivate) > 0 {
+			statusText = fmt.Sprintf("%s%s| ", isStarred, isPrivate)
+		}
+
+		// Parse/format filenames
+		filenameText := ""
+		switch val := gist.Fields["Filename"].(type) {
+		case string:
+			filenameText = val
+		case []interface{}:
+			for _, s := range val {
+				filenameText += s.(string) + " "
+			}
+		}
+		filenameText = ifelse(filenameText != "", fmt.Sprintf("%s | ", filenameText), "")
+
+		// Get Gist Content
+		gistText := GistToText(gist)
+		subtitleText := fmt.Sprintf("%s%s%s", statusText, filenameText, gistText)
+
+		icon := resolveIcon(gist.Fields["Language"])
+		wf.NewItem(gist.Fields["Description"].(string)).
+			Icon(icon).
+			Copytext(gistText).
+			Subtitle(subtitleText).
+			Arg(gistText).
+			Var("title", fmt.Sprintf("'%s'", gist.Fields["Description"].(string))).
+			UID(gist.Fields["ID"].(string)).
+			Valid(true).
+			Cmd().
+			Subtitle("Open Gist in browser").
+			Arg(gist.Fields["URL"].(string)).
+			Valid(true)
+
 	}
 }
 

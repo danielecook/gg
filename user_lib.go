@@ -640,3 +640,14 @@ func parseGistFilesStruct(gist *search.DocumentMatch) map[github.GistFilename]gi
 	}
 	return result
 }
+
+func GistToText(gist *search.DocumentMatch) string {
+	// Concatenates gist files into a single line of text
+	// for coying
+	output := ""
+	gistSet := parseGistFilesStruct(gist)
+	for _, item := range gistSet {
+		output += *item.Content + "\n"
+	}
+	return output
+}

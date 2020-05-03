@@ -1,6 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+
 	aw "github.com/deanishe/awgo"
 )
 
@@ -14,36 +20,45 @@ var (
 	forkIcon       = &aw.Icon{"icons/forked.png", aw.IconTypeImage}
 	latestIcon     = &aw.Icon{"icons/latest.png", aw.IconTypeImage}
 	iconAvailable  = &aw.Icon{"icons/update-available.png", aw.IconTypeImage}
-
-	// Languages
-	languages = map[string]*aw.Icon{
-		"py":     {"icons/python.png", aw.IconTypeImage},
-		"python": {"icons/python.png", aw.IconTypeImage},
-
-		"rb":   {"icons/ruby.png", aw.IconTypeImage},
-		"ruby": {"icons/ruby.png", aw.IconTypeImage},
-
-		"c": {"icons/c.png", aw.IconTypeImage},
-
-		"cpp": {"icons/c++.png", aw.IconTypeImage},
-		"c++": {"icons/c++.png", aw.IconTypeImage},
-
-		"sh": {"icons/bash.png", aw.IconTypeImage},
-		"r":  {"icons/r.png", aw.IconTypeImage},
-
-		"md":       {"icons/markdown.png", aw.IconTypeImage},
-		"markdown": {"icons/markdown.png", aw.IconTypeImage},
-
-		"tsv":  {"icons/data.png", aw.IconTypeImage},
-		"csv":  {"icons/data.png", aw.IconTypeImage},
-		"data": {"icons/data.png", aw.IconTypeImage},
-	}
 )
 
-func resolveIcon(s string) *aw.Icon {
-	//log.Println(s)
-	if v, ok := languages[s]; ok {
-		return v
+func loadIcons() map[string]string {
+	iconDir, err := os.Open("./icons/")
+	if err != nil {
+		log.Fatalf("failed opening directory: %s", err)
+	}
+	defer iconDir.Close()
+	iconFile, err := iconDir.Readdirnames(0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	iconSet = make(map[string]string, len(iconFile))
+	for _, val := range iconFile {
+		iconSet[strings.Replace(filepath.Base(val), ".png", "", 1)] = fmt.Sprintf("icons/%s", val)
+	}
+	return iconSet
+}
+
+func resolveIcon(i interface{}) *aw.Icon {
+	/*
+		If it is a language query always
+	*/
+
+	// If it is a language query return that result
+	if v, ok := iconSet[strings.ToLower(squery.language)]; ok {
+		return &aw.Icon{Type: aw.IconTypeImage,
+			Value: v}
+	}
+
+	// Otherwise convert string and return
+	{
+		switch t := i.(type) {
+		case string:
+			if v, ok := iconSet[strings.ToLower(t)]; ok {
+				return &aw.Icon{Type: aw.IconTypeImage,
+					Value: v}
+			}
+		}
 	}
 	return &aw.Icon{}
 }
