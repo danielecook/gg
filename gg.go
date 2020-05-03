@@ -415,6 +415,31 @@ func main() {
 			},
 		},
 		{
+			Name:      "starred",
+			Usage:     "List and query starred",
+			UsageText: "\n\t\tgg starred [query]\n",
+			Category:  "Query",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "query",
+					Value: "",
+					Usage: "Filter by starred gists",
+				},
+				&statusFlag,
+				&limitFlag,
+			},
+			Action: func(c *cli.Context) error {
+				if len(c.Args().Slice()) > 0 {
+					searchTerm = strings.Join(c.Args().Slice(), " ")
+				}
+				squery.term = strings.Trim(searchTerm, " ")
+				fillQuery(&squery, c)
+				squery.starred = true
+				ls(&squery)
+				return nil
+			},
+		},
+		{
 			Name:      "tag",
 			Aliases:   []string{"tags"},
 			Usage:     "List and query tag",

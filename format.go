@@ -75,8 +75,6 @@ func resultTable(results *bleve.SearchResult, isQuery bool, highlightTermSet []s
 
 		updatedAt := strings.Split(gist.Fields["UpdatedAt"].(string), "T")[0]
 
-		debugMsg(fmt.Sprint(highlightTermSet))
-
 		tableData[idx] = []string{
 			fmt.Sprintf("%v", gist.Fields["IDX"]),
 			ifelse(gist.Fields["Starred"].(string) == "T", "⭐", ""),
@@ -178,6 +176,12 @@ func fieldSummaryAlfred(field string, data [][]string) {
 		case field == "Language":
 			qPrefix = "~"
 			icon = resolveIcon(row[0])
+		case field == "Starred":
+			qPrefix = "⭐"
+			//icon = resolveIcon(row[0])
+		case field == "Owner":
+			qPrefix = "😃"
+			//icon = resolveIcon(row[0])
 		}
 		tagFmt = qPrefix + strings.ToLower(row[0])
 		var subQuery = strings.SplitAfter(alfredQuery, " ")
@@ -200,6 +204,10 @@ func fieldSummaryAlfred(field string, data [][]string) {
 				squery.tag = row[0]
 			} else if qPrefix == "~" {
 				squery.language = row[0]
+			} else if qPrefix == "⭐" {
+				squery.starred = true
+			} else if qPrefix == "😃" {
+				squery.starred = true
 			}
 
 			ls(&squery) // invokes resultListAlfred
@@ -244,6 +252,7 @@ func fieldSummary(field string) {
 	for idx, val := range searchResults.Facets["count"].Terms {
 		data[idx] = []string{val.Term, strconv.Itoa(val.Count)}
 	}
+
 	if outputFormat == "console" {
 		fieldSummaryTable(field, data)
 	} else if outputFormat == "alfred" {

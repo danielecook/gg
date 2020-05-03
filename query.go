@@ -108,7 +108,6 @@ func ls(search *searchQuery) {
 		debugMsg(fmt.Sprint(strings.Split(search.term, " ")))
 		highlightTermSet = append(highlightTermSet, strings.Split(search.term, " ")...)
 		debugMsg(fmt.Sprintf("highlight- %+v", highlightTermSet))
-		debugMsg("TERM")
 	}
 
 	if search.tag != "" {
@@ -154,7 +153,6 @@ func ls(search *searchQuery) {
 	} else {
 		q := query.NewQueryStringQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
-		//sr.Highlight = bleve.NewHighlightWithStyle("ansi")
 		sr.Size = search.limit
 		isQuery = true
 	}
@@ -176,7 +174,6 @@ func ls(search *searchQuery) {
 	results, err := dbIdx.Search(sr)
 	if err != nil || len(results.Hits) == 0 {
 		// If no results, try fuzzy search
-		debugMsg(search.term)
 		fuzzySearch(search.term)
 		os.Exit(0)
 	}
