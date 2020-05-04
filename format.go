@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -165,18 +164,19 @@ func fieldSummaryTable(field string, data [][]string) {
 }
 
 func queryGistsAlfred(alfredQuery string) {
+	squery.limit = 100
+	squery.status = "all"
 	switch {
 	// Starred gists
 	case strings.HasPrefix(alfredQuery, "⭐"):
-		// if len(c.Args().Slice()) > 0 {
-		// 	searchTerm = strings.Join(c.Args().Slice(), " ")
-		// }
-		//squery.term = strings.Trim(searchTerm, " ")
 		squery.starred = true
-		squery.limit = 100
-		squery.status = "all"
+		var subQuery = strings.SplitAfter(alfredQuery, " ")
+		if len(subQuery) > 0 {
+			squery.term = subQuery[0]
+		}
+	default:
+		squery.term = alfredQuery
 	}
-	log.Println(squery)
 	ls(&squery)
 }
 
@@ -210,13 +210,13 @@ func fieldSummaryAlfred(field string, data [][]string) {
 			// Query for results
 			squery.term = subQuery[1] // if empty (""); term does nothing
 			squery.status = "all"
-			squery.limit = 50
+			squery.limit = 100
 			if qPrefix == "#" {
 				squery.tag = row[0]
 			} else if qPrefix == "~" {
 				squery.language = row[0]
 			} else if qPrefix == ":" {
-				squery.starred = true
+				squery.owner = row[0]
 			}
 
 			ls(&squery) // invokes resultListAlfred
@@ -225,20 +225,7 @@ func fieldSummaryAlfred(field string, data [][]string) {
 }
 
 func resultListAlfred(results *bleve.SearchResult) {
-	//
-	/*
 
-		tableData[idx] = []string{
-			fmt.Sprintf("%v", gist.Fields["IDX"]),
-			ifelse(gist.Fields["Starred"].(string) == "T", "⭐", ""),
-			ifelse(gist.Fields["Public"].(string) == "F", "🔒", ""),
-			highlightTerms(fmt.Sprintf("%.60v", gist.Fields["Description"].(string)), highlightTermSet),
-			highlightTerms(fmt.Sprintf("%v", gist.Fields["Filename"]), highlightTermSet),
-			highlightTerms(fmt.Sprintf("%v", gist.Fields["Language"]), highlightTermSet),
-			highlightTerms(gist.Fields["Owner"].(string), highlightTermSet),
-			string(fmt.Sprintf("%v", gist.Fields["NLines"].(float64))),
-			updatedAt,
-	*/
 	for _, gist := range results.Hits {
 
 		// Get Private and Starred States
@@ -264,7 +251,7 @@ func resultListAlfred(results *bleve.SearchResult) {
 
 		// Get Gist Content
 		gistText := GistToText(gist)
-		subtitleText := fmt.Sprintf("%s%s%s", statusText, filenameText, gistText)
+		subtitleText := fmt.Sprintf("%s%s%s", statusText, filenameText, truncateString(gistText, 100))
 
 		icon := resolveIcon(gist.Fields["Language"])
 		it := wf.NewItem(gist.Fields["Description"].(string)).
@@ -274,7 +261,6 @@ func resultListAlfred(results *bleve.SearchResult) {
 			Subtitle(subtitleText).
 			Arg(gistText).
 			Var("title", fmt.Sprintf("'%s'", gist.Fields["Description"].(string))).
-			UID(gist.Fields["ID"].(string)).
 			Valid(true)
 
 		it.Cmd().

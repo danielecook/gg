@@ -39,12 +39,21 @@ func run() {
 	argSet := strings.Join(args[1:], "")
 
 	// Run sync operation in the background
-	wf.RunInBackground("sync", exec.Command("gg", "sync"))
+	if wf.IsRunning("sync") == false {
+		wf.RunInBackground("sync", exec.Command("gg", "sync"))
+	}
 
 	if len(args) > 0 {
 		alfredQuery = strings.Join(args[1:], "")
 	}
 	if len(argSet) == 0 {
+		wf.NewItem("New").
+			Icon(newIcon).
+			Arg("https://gist.github.com/").
+			Subtitle("Create a new gist").
+			Var("action", "new").
+			Valid(true)
+
 		wf.NewItem("Tags").
 			Icon(tagIcon).
 			Autocomplete("#").
@@ -66,6 +75,7 @@ func run() {
 			Subtitle(fmt.Sprintf("%v Owners", libsummary.owners))
 		wf.NewItem("sync")
 		wf.NewItem("set-editor")
+		wf.NewItem("login")
 		wf.NewItem("login")
 	} else {
 		switch {
