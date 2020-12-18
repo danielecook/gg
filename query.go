@@ -103,8 +103,8 @@ func ls(search *searchQuery) {
 	// Consider reworking filtering here to be done manually...
 	if search.term != "" {
 		qstring = fmt.Sprintf("%s", search.term)
-		// TODO: Fix term splitting
-		// TODO: Handle highlighting at field-level when filtering.
+		// TODO [$5fdcfd44ecafc60007b09208]: Fix term splitting
+		// TODO [$5fdcfd44ecafc60007b09209]: Handle highlighting at field-level when filtering.
 		debugMsg(fmt.Sprint(strings.Split(search.term, " ")))
 		highlightTermSet = append(highlightTermSet, strings.Split(search.term, " ")...)
 		debugMsg(fmt.Sprintf("highlight- %+v", highlightTermSet))

@@ -111,7 +111,7 @@ func main() {
 
 	app := cli.NewApp()
 
-	// TODO: Enable autocomplete
+	// TODO [$5fdcfd44ecafc60007b09207]: Enable autocomplete
 	//app.EnableBashCompletion = true
 	libsummary := librarySummary()
 

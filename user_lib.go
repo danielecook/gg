@@ -252,7 +252,7 @@ func runGistEdit(params Snippet) {
 }
 
 func editGist(gistID int) {
-	// TODO: Split out template portion/editing for creating new gists...
+	// TODO [$5fdcfd44ecafc60007b0920a]: Split out template portion/editing for creating new gists...
 	client, username := authenticate("")
 
 	dbGist := lookupGist(gistID)
