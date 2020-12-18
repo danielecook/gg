@@ -99,6 +99,11 @@ var languageFlag = cli.StringFlag{
 
 func main() {
 
+	var queryReserve = []string{"sync", "set-editor", "logout",
+		"new", "edit", "web", "w",
+		"open", "o", "rm", "ls", "list",
+		"search", "starred", "tag", "tags",
+		"language", "languages", "owner"}
 	var searchTerm string
 
 	app := cli.NewApp()
@@ -537,6 +542,8 @@ func main() {
 	args := os.Args
 	if _, err := strconv.Atoi(a); err == nil {
 		args = insert(args, 1, "o")
+	} else if contains(queryReserve, a) == false {
+		args = insert(args, 1, "ls")
 	} else {
 		args = os.Args
 	}
