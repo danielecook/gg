@@ -45,7 +45,10 @@ jobs:
         bash tests/functional-tests.sh
 
     - name: todo-actions
-      uses: dtinth/todo-actions@v0.2.0
+      uses: dtinth/todo-actions@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TODO_ACTIONS_MONGO_URL: ${{ secrets.TODO_ACTIONS_MONGO_URL }}
 
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
