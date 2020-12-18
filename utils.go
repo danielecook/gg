@@ -1,11 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 )
 
 func check(e error) {
@@ -108,4 +110,47 @@ func fetchContent(url string, ch chan *string) {
 	}
 	var result = string(content)
 	ch <- &result
+}
+
+// True / False
+
+func parseTrueFalse(s string) (bool, error) {
+	switch {
+	case strings.ToLower(s) == "t":
+		return true, nil
+	case strings.ToLower(s) == "f":
+		return false, nil
+	case strings.ToLower(s) == "true":
+		return true, nil
+	case strings.ToLower(s) == "false":
+		return false, nil
+	}
+	return false, errors.New("Unable to parse")
+}
+
+func trueFalse(s bool) string {
+	// Convert true and false to 'T' and 'F' b/c of
+	// bleve search index limitations
+	if s {
+		return "T"
+	}
+	return "F"
+}
+
+func between(x int, a int, b int) bool {
+	if x >= a && x < b {
+		return true
+	}
+	return false
+}
+
+func truncateString(str string, num int) string {
+	bnoden := str
+	if len(str) > num {
+		if num > 3 {
+			num -= 3
+		}
+		bnoden = str[0:num] + "..."
+	}
+	return bnoden
 }

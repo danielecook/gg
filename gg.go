@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/atotto/clipboard"
 	"github.com/blevesearch/bleve/search"
 	"github.com/fatih/color"
@@ -22,6 +23,7 @@ var highlightText = color.New(color.FgGreen).Add(color.Bold).Add(color.Underline
 var boldUnderline = color.New(color.Underline).Add(color.Bold)
 var blueText = color.New(color.FgBlue).Add(color.Bold)
 var squery = searchQuery{}
+var outputFormat = "console"
 
 func successMsg(s string) {
 	c := greenText.FprintFunc()
@@ -65,7 +67,7 @@ var starredFlag = cli.BoolFlag{
 
 var sortFlag = cli.StringFlag{
 	Name:  "sort",
-	Value: "-UpdatedAt",
+	Value: "",
 	Usage: "Sort by field",
 }
 
@@ -97,6 +99,14 @@ var languageFlag = cli.StringFlag{
 
 func main() {
 
+	var queryReserve = []string{"sync", "set-editor", "logout",
+		"new", "edit", "web", "w",
+		"open", "o", "rm", "ls", "list",
+		"search", "starred", "tag", "tags",
+		"language", "languages", "owner",
+		"help", "--help", "h", "-h",
+		"__run_alfred",
+		"debug"}
 	var searchTerm string
 
 	app := cli.NewApp()
@@ -116,9 +126,14 @@ func main() {
 			app.Usage +=
 				"\n\nLIBRARY:" +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Login"), config.Login) +
+					fmt.Sprintf("\n\t %-5s %20v", boldUnderline.Sprintf("Editor"), config.Editor) +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Gists"), libsummary.gists) +
 					fmt.Sprintf("\n\t %-5s: %20v", boldUnderline.Sprintf("Files"), libsummary.files) +
-					fmt.Sprintf("\n\t %-5s %20v", "⭐:", libsummary.starred)
+					fmt.Sprintf("\n\t %-5s: %21d", boldUnderline.Sprintf("Tags"), libsummary.tags) +
+					fmt.Sprintf("\n\t %-5s: %16d", boldUnderline.Sprintf("Languages"), libsummary.languages) +
+					fmt.Sprintf("\n\t %-5s %20v", "⭐:", libsummary.starred) +
+					"\n\nLast Update:" +
+					fmt.Sprintf("\n\t %27v", config.UpdatedAt.Format("2006-01-02 15:04:05"))
 		}
 	}
 	app.Version = "0.0.1"
@@ -143,6 +158,14 @@ func main() {
 		return nil
 	}
 	app.Commands = []*cli.Command{
+		{
+			Name:   "__run_alfred",
+			Hidden: true,
+			Action: func(c *cli.Context) error {
+				runAlfred()
+				return nil
+			},
+		},
 		{
 			Name:                   "new",
 			Usage:                  "Create a new gist",
@@ -187,7 +210,7 @@ func main() {
 				if len(fileSet) == 0 {
 					ThrowError("No content supplied (use --clipboard, stdin, or files)", 1)
 				}
-				createGist(fileSet, c.String("description"), c.Bool("private") == false)
+				newGist(fileSet, c.String("description"), c.Bool("private") == false)
 				return nil
 			},
 			Flags: []cli.Flag{
@@ -229,7 +252,7 @@ func main() {
 			Name:      "sync",
 			Usage:     "Login and fetch your gist library",
 			UsageText: "\n\t\tgg sync [Authentication Token]\n",
-			Category:  "Library",
+			Category:  "Config",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "token",
@@ -245,9 +268,37 @@ func main() {
 			Action: func(c *cli.Context) error {
 				if c.String("token") != "" || c.Bool("rebuild") {
 					/* gg login */
-					initializeLibrary(c.String("token"), c.Bool("rebuild"))
+					var token string
+					if c.Bool("rebuild") {
+						config, _ := getConfig()
+						token = config.AuthToken
+					} else {
+						token = c.String("token")
+					}
+					initializeLibrary(token, c.Bool("rebuild"))
 				}
 				updateLibrary()
+				return nil
+			},
+		},
+		{
+			Name:                   "set-editor",
+			Usage:                  "Set $EDITOR",
+			UsageText:              "\n\t\tgg set-editor <ID>\n",
+			Category:               "Config",
+			UseShortOptionHandling: true,
+			Action: func(c *cli.Context) error {
+				config, _ := getConfig()
+				answers := struct {
+					Editor string `survey:"color"` // or you can tag fields to match a specific name
+				}{}
+				err := survey.Ask(editorSurvey, &answers)
+				if err != nil {
+					ThrowError("Invalid response", 1)
+				}
+				config.Editor = answers.Editor
+				saveConfig(config)
+				successMsg(fmt.Sprintf("Editor set to %v\n", answers.Editor))
 				return nil
 			},
 		},
@@ -255,7 +306,7 @@ func main() {
 			Name:      "logout",
 			Usage:     "Logout",
 			UsageText: "\n\t\tgg logout\n",
-			Category:  "Library",
+			Category:  "Config",
 			Action: func(c *cli.Context) error {
 				deleteLibrary()
 				successMsg("Successfully Logged out\n")
@@ -329,6 +380,7 @@ func main() {
 		},
 		{
 			Name:                   "ls",
+			Aliases:                []string{"list"},
 			Usage:                  "List, Search and filter",
 			UsageText:              "\n\t\tgg ls [options] [query]\n\n\t\tquery - Searches most fields",
 			Category:               "Query",
@@ -367,6 +419,31 @@ func main() {
 				}
 				searchTerm = strings.Trim(searchTerm, " ")
 				fuzzySearch(searchTerm)
+				return nil
+			},
+		},
+		{
+			Name:      "starred",
+			Usage:     "List and query starred",
+			UsageText: "\n\t\tgg starred [query]\n",
+			Category:  "Query",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "query",
+					Value: "",
+					Usage: "Filter by starred gists",
+				},
+				&statusFlag,
+				&limitFlag,
+			},
+			Action: func(c *cli.Context) error {
+				if len(c.Args().Slice()) > 0 {
+					searchTerm = strings.Join(c.Args().Slice(), " ")
+				}
+				squery.term = strings.Trim(searchTerm, " ")
+				fillQuery(&squery, c)
+				squery.starred = true
+				ls(&squery)
 				return nil
 			},
 		},
@@ -468,6 +545,8 @@ func main() {
 	args := os.Args
 	if _, err := strconv.Atoi(a); err == nil {
 		args = insert(args, 1, "o")
+	} else if contains(queryReserve, a) == false {
+		args = insert(args, 1, "ls")
 	} else {
 		args = os.Args
 	}
