@@ -6,16 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"sort"
+	"strings"
+	"text/template"
 	"time"
 
+	"github.com/blevesearch/bleve/search"
 	"github.com/briandowns/spinner"
 	"github.com/google/go-github/github"
 	"github.com/schollz/progressbar/v2"
@@ -33,8 +36,10 @@ var libPath = fmt.Sprintf("%s/library.json", getLibraryDirectory())
 var libTagsPath = fmt.Sprintf("%s/tags.json", getLibraryDirectory())
 
 type configuration struct {
-	AuthToken string `json:"token"`
-	Login     string `json:"login"`
+	AuthToken string    `json:"token"`
+	Login     string    `json:"login"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Editor    string    `json:"editor"`
 }
 
 type gistSort []*github.Gist
@@ -51,15 +56,6 @@ func (e gistSort) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
-func trueFalse(s bool) string {
-	// Convert true and false to 'T' and 'F' b/c of
-	// bleve search index limitations
-	if s {
-		return "T"
-	}
-	return "F"
-}
-
 // Snippet - Used to store gist data
 type Snippet struct {
 	// The ID is actually the github Node ID which is unique to the given commit
@@ -73,6 +69,7 @@ type Snippet struct {
 	Starred     string                                  `json:"Starred"`
 	Files       map[github.GistFilename]github.GistFile `json:"Files"`
 	NFiles      int                                     `json:"NFiles"`
+	NLines      int                                     `json:"NLines"`
 	Language    []string                                `json:"Language"`
 	Filename    []string                                `json:"Filename"`
 	Tags        []string                                `json:"Tags"`
@@ -81,14 +78,6 @@ type Snippet struct {
 	UpdatedAt   time.Time                               `json:"UpdatedAt"`
 	URL         string                                  `json:"URL"`
 }
-
-var gistTemplate = []byte(`# Set metadata for the snippet below
-description: {{ .Description }}
-starred: {{ .Starred }}
-public: {{ .Public }}
----------------------------------------------------
-{{ .Content }}
-`)
 
 // Generate list of IDs for gists
 func idMap(gistSet []*github.Gist) map[string]*github.Gist {
@@ -129,14 +118,19 @@ func initializeLibrary(AuthToken string, rebuild bool) bool {
 	var config = configuration{
 		AuthToken: string(AuthToken),
 		Login:     string(user.GetLogin()),
+		UpdatedAt: time.Now(),
+		Editor:    "",
 	}
+	saveConfig(config)
+	return true
+}
+
+func saveConfig(config configuration) {
 	_ = os.Mkdir(getLibraryDirectory(), 0755)
 	out, err := json.Marshal(config)
 	check(err)
 	err = ioutil.WriteFile(libConfig, out, 0644)
 	check(err)
-
-	return true
 }
 
 func getConfig() (configuration, error) {
@@ -177,7 +171,7 @@ func authenticate(authToken string) (*github.Client, string) {
 	return client, login
 }
 
-func createGist(fileSet map[string]string, description string, public bool) {
+func newGist(fileSet map[string]string, description string, public bool) {
 	client, _ := authenticate("")
 
 	var gist github.Gist
@@ -190,7 +184,6 @@ func createGist(fileSet map[string]string, description string, public bool) {
 			Content:  &item,
 			Filename: fset,
 		}
-		fmt.Printf("%v == %v", description, len(item))
 	}
 
 	gist.Description = &description
@@ -205,28 +198,31 @@ func createGist(fileSet map[string]string, description string, public bool) {
 	gistDbRec := gistDbRecord(resultGist, nextIdx(), []string{})
 	dbIdx.Index(gistDbRec.ID, gistDbRec)
 	// Print URL on success
-	errlog.Println(*resultGist.HTMLURL)
+	boldUnderline.Println(*resultGist.HTMLURL)
 }
 
-func editGist(gistID int) {
-	//client, _ := authenticate("")
+func runGistEdit(params Snippet) {
+	// Opens template and allows user to edit; and validates.
+	gistFiles := params.Files
+	// Use first filename ext
+	var ext string
+	for _, item := range gistFiles {
+		ext = filepath.Ext(*item.Filename)
+		break
+	}
 
-	gist := lookupGist(gistID)
-
-	tmpfile, err := ioutil.TempFile("", "gist.*.yaml")
+	tmpfile, err := ioutil.TempFile("", fmt.Sprintf("gist.*.%s", ext))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer os.Remove(tmpfile.Name()) // clean up
 
-	var params = Snippet{
-		Description: gist.Fields["Description"].(string),
-		Starred:     gist.Fields["Starred"].(string),
-		Public:      gist.Fields["Public"].(string),
-		//Content:     "great",
-	}
-
-	t, err := template.New("tname").Parse(string(gistTemplate))
+	t, err := template.New("tname").Funcs(template.FuncMap{
+		"Deref": func(i *string) string { return *i },
+		"fname_line": func(fname string) string {
+			return fmt.Sprintf("%s%s", fname, strings.Repeat("-", (100-len(fname))))
+		},
+	}).Parse(string(gistTemplate))
 	check(err)
 	buf := new(bytes.Buffer)
 	t.Execute(buf, params)
@@ -238,23 +234,145 @@ func editGist(gistID int) {
 	}
 
 	var cmd *exec.Cmd
-	var editor = "subl"
-	// editorPath := os.Getenv("EDITOR")
+	config, _ := getConfig()
+	var editor = config.Editor
 	if editor == "subl" {
 		cmd = exec.Command("subl", "--wait", fmt.Sprintf("%s", tmpfile.Name()))
 	} else if editor == "nano" {
 		cmd = exec.Command("nano", "-t", tmpfile.Name())
-		cmd.Stdin = os.Stdout
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+	} else if editor == "vim" {
+		cmd = exec.Command("vim", tmpfile.Name())
+	} else if editor == "micro" {
+		cmd = exec.Command("micro", tmpfile.Name())
 	}
+	cmd.Stdin = os.Stdout
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+}
+
+func editGist(gistID int) {
+	// TODO: Split out template portion/editing for creating new gists...
+	client, username := authenticate("")
+
+	dbGist := lookupGist(gistID)
+	// Check that username == user
+	if username != dbGist.Fields["Owner"].(string) {
+		ThrowError("You can't edit another users gists!", 1)
+	}
+
+	gistFiles := parseGistFilesStruct(dbGist)
+
+	dbStarred := dbGist.Fields["Starred"].(string) == "T"
+
+	var params = Snippet{
+		Description: dbGist.Fields["Description"].(string),
+		Starred:     dbGist.Fields["Starred"].(string),
+		Public:      dbGist.Fields["Public"].(string),
+		Files:       gistFiles,
+	}
+
+	// Use first filename ext
+	var ext string
+	for _, item := range gistFiles {
+		ext = filepath.Ext(*item.Filename)
+		break
+	}
+
+	tmpfile, err := ioutil.TempFile("", fmt.Sprintf("gist.*%s", ext))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	t, err := template.New("tname").Funcs(template.FuncMap{
+		"Deref": func(i *string) string { return *i },
+		"fname_line": func(fname string) string {
+			return fmt.Sprintf("%s%s", fname, strings.Repeat("-", (100-len(fname))))
+		},
+	}).Parse(string(gistTemplate))
+	check(err)
+	buf := new(bytes.Buffer)
+	t.Execute(buf, params)
+
+	// Write the header of the file
+	err = ioutil.WriteFile(tmpfile.Name(), buf.Bytes(), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var cmd *exec.Cmd
+	config, _ := getConfig()
+	var editor = config.Editor
+	if editor == "subl" {
+		cmd = exec.Command("subl", "--wait", fmt.Sprintf("%s", tmpfile.Name()))
+	} else if editor == "nano" {
+		cmd = exec.Command("nano", "-t", tmpfile.Name())
+	} else if editor == "vim" {
+		cmd = exec.Command("vim", tmpfile.Name())
+	} else if editor == "micro" {
+		cmd = exec.Command("micro", tmpfile.Name())
+	}
+	cmd.Stdin = os.Stdout
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)
 	}
 	edit, err := ioutil.ReadFile(tmpfile.Name())
-	fmt.Println(string(edit))
+	if err != nil {
+		ThrowError("Error reading output", 1)
+	}
 
+	var starred bool
+	var eGist github.Gist
+	eGist, starred, err = parseGistTemplate(string(edit))
+
+	// If filenames were removed from the original, set them to NULL to delete.
+	for fname := range gistFiles {
+		if (eGist.Files[fname] == github.GistFile{}) {
+			var nullFile *string = nil
+			eGist.Files[fname] = github.GistFile{
+				Filename: nullFile,
+			}
+		}
+	}
+
+	if err != nil {
+		// Reload template here with comment
+	}
+
+	greenText.Printf("Saving %v [%v]\n", int(dbGist.Fields["IDX"].(float64)), dbGist.Fields["GistID"].(string))
+	resultGist, response, err := client.Gists.Edit(ctx, dbGist.Fields["GistID"].(string), &eGist)
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		ThrowError(response.String(), 1)
+	}
+
+	// If star status has changed, update
+	var starErr error
+	var starIds []string
+	if dbStarred != starred {
+		if starred {
+			_, starErr = client.Gists.Star(ctx, resultGist.GetID())
+		} else {
+			_, starErr = client.Gists.Unstar(ctx, resultGist.GetID())
+		}
+		if starErr != nil {
+			ThrowError("Error updating star", 1)
+		}
+		starIds = []string{getGistRecID(resultGist)}
+	}
+	// Delete the old record, and insert the new record below.
+	// Retain the same 'IDX' as before.
+	batch := dbIdx.NewBatch()
+	editGistDbRec := gistDbRecord(resultGist, int(dbGist.Fields["IDX"].(float64)), starIds)
+	batch.Index(editGistDbRec.ID, editGistDbRec)
+	batch.Delete(dbGist.ID)
+	dbIdx.Batch(batch)
+
+	boldUnderline.Println(*resultGist.HTMLURL)
 }
 
 func rmGist(gistID int) {
@@ -285,13 +403,19 @@ func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
 	// if not, download files.
 	filenames := []string{}
 	languages := []string{}
+	nlines := 0
 	// Check whether document exists
 	if _, err := dbIdx.Document(gistRecID); err == nil {
 		for k := range gist.Files {
 			var updated = gist.Files[k]
-			var url = string(*gist.Files[k].RawURL)
-			go fetchContent(url, ch)
-			updated.Content = <-ch
+			// If RawURL is nil, the gist was generated
+			// locally and does not need to be retrieved.
+			if gist.Files[k].RawURL != nil {
+				var url = string(*gist.Files[k].RawURL)
+				go fetchContent(url, ch)
+				updated.Content = <-ch
+			}
+			nlines += len(strings.Split(*updated.Content, "\n"))
 			items[k] = updated
 			if gist.Files[k].Filename != nil {
 				filenames = append(filenames, *gist.Files[k].Filename)
@@ -314,6 +438,7 @@ func gistDbRecord(gist *github.Gist, idx int, starIDs []string) Snippet {
 		Filename:    filenames,
 		Starred:     trueFalse(contains(starIDs, gistRecID)),
 		NFiles:      len(items),
+		NLines:      nlines,
 		Tags:        tags,
 		Comments:    gist.GetComments(),
 		CreatedAt:   gist.GetCreatedAt(),
@@ -413,16 +538,23 @@ func updateLibrary() {
 	bar := progressbar.New(len(allGists))
 
 	currentGistIds := make([]string, len(allGists))
-	// Not sure if this concurrent method is working in parallel or not...
-	for idx, gist := range allGists {
+	idStart := nextIdx()
+	offset := 0
+	for i, gist := range allGists {
 		// Store gist in db
-		gistDbRec := gistDbRecord(gist, idx, starIDs)
-		currentGistIds[idx] = getGistRecID(gist)
-		Library[idx] = &gistDbRec
+		var gistDbRec Snippet
+		if contains(existingGistIds, getGistRecID(gist)) == false {
+			// Calculate nextIdx so IDs are static unless
+			// a rebuild is performed.
+			gistDbRec = gistDbRecord(gist, idStart+offset, starIDs)
+			offset++
+		}
+		currentGistIds[i] = getGistRecID(gist)
+		Library[i] = &gistDbRec
 		bar.Add(1)
 	}
 
-	boldMsg("Indexing Gists\n")
+	boldMsg("\nIndexing Gists\n")
 	batch := dbIdx.NewBatch()
 
 	// Delete gist IDs that no longer exist
@@ -452,6 +584,11 @@ func updateLibrary() {
 	err = ioutil.WriteFile(libPath, out, 0644)
 	check(err)
 
+	// Update date/time of config
+	config, _ := getConfig()
+	config.UpdatedAt = time.Now()
+	saveConfig(config)
+
 	docCount, err := dbIdx.DocCount()
 	fmt.Println()
 	successMsg(fmt.Sprintf("Loaded %v gist%s\n", docCount, ifelse(docCount == 1, "", "s")))
@@ -462,4 +599,56 @@ func libExists() bool {
 		return false
 	}
 	return true
+}
+
+func parseGistFiles(gist *search.DocumentMatch) map[string]map[string]string {
+	// Parse bleve index which flattens results
+	keys := reflect.ValueOf(gist.Fields).MapKeys()
+	strkeys := make([]string, len(keys))
+	for i := 0; i < len(keys); i++ {
+		strkeys[i] = keys[i].String()
+	}
+	var fsplit []string
+	var fileset = map[string]map[string]string{}
+	for idx := range strkeys {
+		fsplit = strings.Split(strkeys[idx], ".")
+		if fsplit[0] == "Files" {
+			field := fsplit[len(fsplit)-1]
+			filename := strings.Join(fsplit[1:len(fsplit)-1], ".")
+			value := gist.Fields[strkeys[idx]]
+			if fileset[filename] == nil {
+				fileset[filename] = map[string]string{}
+			}
+			fileset[filename][field] = fmt.Sprintf("%v", value)
+		}
+	}
+	return fileset
+}
+
+func parseGistFilesStruct(gist *search.DocumentMatch) map[github.GistFilename]github.GistFile {
+	// Converts gistfiles struct for use in Snippet
+	files := parseGistFiles(gist)
+	var result map[github.GistFilename]github.GistFile
+	result = make(map[github.GistFilename]github.GistFile, len(files))
+	for _, item := range files {
+		var content = item["content"]
+		var fname = item["filename"]
+		var fset = github.GistFilename(fname)
+		result[fset] = github.GistFile{
+			Content:  &content,
+			Filename: &fname,
+		}
+	}
+	return result
+}
+
+func GistToText(gist *search.DocumentMatch) string {
+	// Concatenates gist files into a single line of text
+	// for coying
+	output := ""
+	gistSet := parseGistFilesStruct(gist)
+	for _, item := range gistSet {
+		output += *item.Content + "\n"
+	}
+	return output
 }

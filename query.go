@@ -15,9 +15,12 @@ import (
 )
 
 type libSummary struct {
-	gists   uint64
-	files   int
-	starred int
+	gists     uint64
+	files     int
+	starred   int
+	tags      int
+	languages int
+	owners    int
 }
 
 type searchQuery struct {
@@ -51,6 +54,18 @@ var sortMap = map[string]string{
 	"created":     "CreatedAt",
 	"createdat":   "CreatedAt",
 	"updated":     "UpdatedAt",
+	"n":           "NLines",
+}
+
+func uniqueAttributes(gist *search.DocumentMatch, field string, counter map[string]bool) {
+	switch val := gist.Fields[field].(type) {
+	case string:
+		counter[val] = true
+	case []interface{}:
+		for _, s := range val {
+			counter[s.(string)] = true
+		}
+	}
 }
 
 func librarySummary() libSummary {
@@ -58,7 +73,7 @@ func librarySummary() libSummary {
 	q := query.NewMatchAllQuery()
 	sr := bleve.NewSearchRequest(q)
 	sr.Size = int(dc)
-	sr.Fields = []string{"NFiles", "Starred"}
+	sr.Fields = []string{"NFiles", "Starred", "Tags", "Language", "Owner"}
 	results, err := dbIdx.Search(sr)
 	if err != nil {
 		errorMsg("No Results")
@@ -66,11 +81,19 @@ func librarySummary() libSummary {
 	boolInt := map[bool]int{false: 0, true: 1}
 	var nfiles int
 	var nstarred int
+	ntags := map[string]bool{}
+	nlanguage := map[string]bool{}
+	nowners := map[string]bool{}
+	//var nLanguage map[string]bool
+	//var nOwners map[string]bool
 	for _, gist := range results.Hits {
 		nfiles += int(gist.Fields["NFiles"].(float64))
 		nstarred += boolInt[gist.Fields["Starred"].(string) == "T"]
+		uniqueAttributes(gist, "Language", nlanguage)
+		uniqueAttributes(gist, "Tags", ntags)
+		uniqueAttributes(gist, "Owner", nowners)
 	}
-	return libSummary{gists: dc, files: nfiles, starred: nstarred}
+	return libSummary{gists: dc, files: nfiles, starred: nstarred, tags: len(ntags), languages: len(nlanguage), owners: len(nowners)}
 }
 
 // ls - the primary query interface
@@ -85,7 +108,6 @@ func ls(search *searchQuery) {
 		debugMsg(fmt.Sprint(strings.Split(search.term, " ")))
 		highlightTermSet = append(highlightTermSet, strings.Split(search.term, " ")...)
 		debugMsg(fmt.Sprintf("highlight- %+v", highlightTermSet))
-		debugMsg("TERM")
 	}
 
 	if search.tag != "" {
@@ -131,7 +153,6 @@ func ls(search *searchQuery) {
 	} else {
 		q := query.NewQueryStringQuery(qstring)
 		sr = bleve.NewSearchRequest(q)
-		//sr.Highlight = bleve.NewHighlightWithStyle("ansi")
 		sr.Size = search.limit
 		isQuery = true
 	}
@@ -143,18 +164,25 @@ func ls(search *searchQuery) {
 			sortBy = fmt.Sprintf("-%s", sortMap[strings.Trim(search.sort, "-")])
 		}
 		sr.SortBy([]string{sortBy, "-_score"})
-	} else if isQuery {
+	} else if isQuery == true {
 		sr.SortBy([]string{"-_score"})
+	} else if isQuery == false {
+		sr.SortBy([]string{"-UpdatedAt"})
 	}
 
 	sr.Fields = []string{"*"}
-
 	results, err := dbIdx.Search(sr)
 	if err != nil || len(results.Hits) == 0 {
-		errorMsg("No Results\n")
+		// If no results, try fuzzy search
+		fuzzySearch(search.term)
 		os.Exit(0)
 	}
-	resultTable(results, isQuery, highlightTermSet)
+
+	if outputFormat == "console" {
+		resultTable(results, isQuery, highlightTermSet)
+	} else if outputFormat == "alfred" {
+		resultListAlfred(results)
+	}
 }
 
 // Perform fuzzy search
@@ -162,6 +190,7 @@ func fuzzySearch(searchTerm string) {
 	var isQuery bool
 	var sr *bleve.SearchRequest
 	q := query.NewFuzzyQuery(searchTerm)
+	q.SetFuzziness(2)
 	sr = bleve.NewSearchRequest(q)
 	sr.Size = 10
 	isQuery = true
@@ -169,7 +198,8 @@ func fuzzySearch(searchTerm string) {
 	sr.Fields = []string{"*"}
 	results, err := dbIdx.Search(sr)
 	if err != nil {
-		errorMsg("No Results")
+		errorMsg("No Results\n")
+		os.Exit(0)
 	}
 	resultTable(results, isQuery, []string{})
 }
