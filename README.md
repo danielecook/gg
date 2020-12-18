@@ -44,6 +44,7 @@ gg sync # syncs gists
 The `gg` command list is:
 
 * `#` - any integer number.
+* `help`, `h`, `--help`, `-h`
 * `sync`
 * `set-editor` 
 * `logout`

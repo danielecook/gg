@@ -279,7 +279,7 @@ func editGist(gistID int) {
 		break
 	}
 
-	tmpfile, err := ioutil.TempFile("", fmt.Sprintf("gist.*.%s", ext))
+	tmpfile, err := ioutil.TempFile("", fmt.Sprintf("gist.*%s", ext))
 	if err != nil {
 		log.Fatal(err)
 	}

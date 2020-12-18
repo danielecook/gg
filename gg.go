@@ -103,7 +103,8 @@ func main() {
 		"new", "edit", "web", "w",
 		"open", "o", "rm", "ls", "list",
 		"search", "starred", "tag", "tags",
-		"language", "languages", "owner"}
+		"language", "languages", "owner",
+		"help", "--help", "h", "-h"}
 	var searchTerm string
 
 	app := cli.NewApp()

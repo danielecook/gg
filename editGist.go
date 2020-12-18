@@ -61,7 +61,7 @@ func parseGistTemplate(s string) (github.Gist, bool, error) {
 			switch {
 			case strings.HasSuffix(line, "::>>>"):
 				// Store content
-				appendFile(items, filename, fileContent)
+				appendFile(items, filename, strings.TrimSuffix(fileContent, "\n"))
 
 				// Initate new file
 				fileContent = ""
