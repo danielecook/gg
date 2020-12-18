@@ -41,7 +41,7 @@ jobs:
       - name: Install gox
         run: go install github.com/mitchellh/gox
 
-      - name: Build 
+      - name: Build Multi-Platform
         run: |
           $HOME/go/bin/gox -ldflags "-X main.Version=$VERSION_NUMBER" \
                            --output="$GOX_OUTPUT" \

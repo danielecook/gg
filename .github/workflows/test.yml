@@ -1,0 +1,51 @@
+name: Test
+on: [push]
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Get dependencies
+      run: |
+        go get -v -t -d ./...
+        if [ -f Gopkg.toml ]; then
+            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            dep ensure
+        fi
+
+    - name: Build
+      run: |
+        go build -v .
+        chmod +x gg
+        mkdir pub
+        cp gg pub
+
+    - name: Test
+      env: 
+          TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
+      run: |
+        export PATH="${PATH}:`pwd`"
+        # Login
+        gg sync --token ${TEST_TOKEN}
+        # Remove old gists
+        gg rm `gg ls | cut -f 1 | tail +3`
+        bash tests/functional-tests.sh
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: gg
+        path: pub 
