@@ -2,6 +2,18 @@
 
 A CLI for your [Gists](gist.github.com). It syncs your gists locally, making them searchable and quickly accessible.
 
+# Installation
+
+Download the [latest release](https://github.com/danielecook/gg/releases/latest) for your system.
+
+```shell
+# Move the binary to a location on your $PATH and rename to gg
+mv gg_linux /usr/local/bin/gg
+chmod +x /usr/local/bin/gg_linux
+# gg should now work
+gg
+```
+
 # Features
 
 * Syntax highlighting in terminal
