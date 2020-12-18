@@ -538,22 +538,23 @@ func updateLibrary() {
 	bar := progressbar.New(len(allGists))
 
 	currentGistIds := make([]string, len(allGists))
-	// Not sure if this concurrent method is working in parallel or not...
 	idStart := nextIdx()
+	offset := 0
 	for i, gist := range allGists {
 		// Store gist in db
 		var gistDbRec Snippet
 		if contains(existingGistIds, getGistRecID(gist)) == false {
 			// Calculate nextIdx so IDs are static unless
 			// a rebuild is performed.
-			gistDbRec = gistDbRecord(gist, idStart+i, starIDs)
+			gistDbRec = gistDbRecord(gist, idStart+offset, starIDs)
+			offset++
 		}
 		currentGistIds[i] = getGistRecID(gist)
 		Library[i] = &gistDbRec
 		bar.Add(1)
 	}
 
-	boldMsg("Indexing Gists\n")
+	boldMsg("\nIndexing Gists\n")
 	batch := dbIdx.NewBatch()
 
 	// Delete gist IDs that no longer exist

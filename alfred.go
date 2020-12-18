@@ -68,7 +68,6 @@ func run() {
 		wf.NewItem("sync")
 		wf.NewItem("set-editor")
 		wf.NewItem("login")
-		wf.NewItem("login")
 	} else {
 		switch {
 		case strings.HasPrefix(alfredQuery, "#"):
@@ -88,6 +87,10 @@ func run() {
 }
 
 func runAlfred() {
+
+	wf = aw.New(aw.HelpURL("http://www.github.com/danielecook/gg"),
+		aw.MaxResults(maxResults))
+
 	outputFormat = "alfred"
 	wf.Run(run)
 }
