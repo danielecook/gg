@@ -59,6 +59,7 @@ The `gg` command list is:
 * `tag`, `tags`
 * `language`, `languages`
 * `owner`
+* `__run_alfred`, `debug`
 
 You can still search on these terms by using `ls` explicitly:
 

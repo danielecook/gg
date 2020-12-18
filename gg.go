@@ -104,7 +104,9 @@ func main() {
 		"open", "o", "rm", "ls", "list",
 		"search", "starred", "tag", "tags",
 		"language", "languages", "owner",
-		"help", "--help", "h", "-h"}
+		"help", "--help", "h", "-h",
+		"__run_alfred",
+		"debug"}
 	var searchTerm string
 
 	app := cli.NewApp()
