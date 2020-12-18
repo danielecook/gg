@@ -1,0 +1,91 @@
+name: Build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up environment
+        run: echo ::set-env name=VERSION_NUMBER::$(echo ${GITHUB_REF:10})
+
+      - name: Set up Go 1.14
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Install gox
+        run: go install github.com/mitchellh/gox
+
+      - name: Build 
+        run: |
+          $HOME/go/bin/gox -ldflags "-X main.Version=$VERSION_NUMBER" \
+                           --output="$GOX_OUTPUT" \
+                           --osarch="$GOX_OSARCH" \
+                           github.com/$GITHUB_REPOSITORY
+        env:
+          GOX_OUTPUT: "./{{.Dir}}_{{.OS}}"
+          GOX_OSARCH: "linux/amd64 darwin/amd64 windows/amd64"
+      
+      - name: Move Darwin
+        run: mv gg_darwin gg_macos
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: gg_macos
+          path: gg_macos
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        if: contains(github.ref, 'tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+      - name: Upload MACOS binary
+        uses: actions/upload-release-asset@v1.0.1
+        if: contains(github.ref, 'tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: gg_macos
+          asset_name: gg_macos
+          asset_content_type: application/octet-stream
+
+      - name: Upload Linux Binary
+        uses: actions/upload-release-asset@v1.0.1
+        if: contains(github.ref, 'tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: gg_linux
+          asset_name: gg_linux
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows Binary
+        uses: actions/upload-release-asset@v1.0.1
+        if: contains(github.ref, 'tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: gg_windows.exe
+          asset_name: gg_windows.exe
+          asset_content_type: application/octet-stream
