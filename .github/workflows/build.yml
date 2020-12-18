@@ -20,8 +20,23 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests
-        run: go test ./...
+      - name: Build
+        run: |
+          go build -v .
+          chmod +x gg
+          mkdir pub
+          cp gg pub
+          
+      - name: Test
+        env: 
+            TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
+        run: |
+          export PATH="${PATH}:`pwd`"
+          # Login
+          gg sync --token ${TEST_TOKEN}
+          # Remove old gists
+          gg rm `gg ls | cut -f 1 | tail +3`
+          bash tests/functional-tests.sh
 
       - name: Install gox
         run: go install github.com/mitchellh/gox
@@ -34,7 +49,7 @@ jobs:
                            github.com/$GITHUB_REPOSITORY
         env:
           GOX_OUTPUT: "./{{.Dir}}_{{.OS}}"
-          GOX_OSARCH: "linux/amd64 darwin/amd64 windows/amd64"
+          GOX_OSARCH: "linux/amd64 darwin/amd64"
       
       - name: Move Darwin
         run: mv gg_darwin gg_macos
@@ -79,13 +94,13 @@ jobs:
           asset_name: gg_linux
           asset_content_type: application/octet-stream
 
-      - name: Upload Windows Binary
-        uses: actions/upload-release-asset@v1.0.1
-        if: contains(github.ref, 'tags/v')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: gg_windows.exe
-          asset_name: gg_windows.exe
-          asset_content_type: application/octet-stream
+      # - name: Upload Windows Binary
+      #   uses: actions/upload-release-asset@v1.0.1
+      #   if: contains(github.ref, 'tags/v')
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: gg_windows.exe
+      #     asset_name: gg_windows.exe
+      #     asset_content_type: application/octet-stream
