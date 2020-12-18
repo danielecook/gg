@@ -21,14 +21,6 @@ var (
 	iconSet     map[string]string
 )
 
-func init() {
-	// Create a new Workflow using default settings.
-	// Critical settings are provided by Alfred via environment variables,
-	// so this *will* die in flames if not run in an Alfred-like environment.
-	wf = aw.New(aw.HelpURL("http://www.github.com/danielecook/gg"),
-		aw.MaxResults(maxResults))
-}
-
 // Your workflow starts here
 func run() {
 
